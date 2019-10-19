@@ -108,9 +108,9 @@ break kern_init
 continue
 ```
 - 使用make DEBUG 打开gdb调试窗口如下,由于gdb的设置文件,默认打开文件的init.c,执行了第一条函数kernel_init:
-![调试窗口](/home/jack-lio/图片/1.png)
+![调试窗口](./figures/1.png)
 - 使用si命令进行单步跟踪调试,使用x/2i $pc 显示当前所在命令附近两条汇编代码,具体如下:
-![2](/home/jack-lio/图片/2.png)
+![2](./figures/2.png)
 
 修改gdbinit文件,使用8086指令集,连接1234端口进行通信,同时设置断点在0x7c00处,之后继续执行,并显示附近的两条汇编代码.
 ```
@@ -121,11 +121,11 @@ continue
 x /2i $pc
 ```
 执行后没有在窗口显示汇编源码,因此使用命令layout asm显示执行程序的汇编代码.具体如下:
-![3](/home/jack-lio/图片/3.png)
+![3](./figures/3.png)
 通过设定makefile文件进行修改,在debug的目标规则定义中添加一条命令选项 `-d in_asm -D  bootasm.s`实现将运行的汇编代码写入bootasm.s文件.运行 `make debug`命令,打开窗口后进行单步调试能够在q.log文件中看到正在执行的反汇编代码.
-![4](/home/jack-lio/图片/4.png)
+![4](./figures/4.png)
 
-![6](/home/jack-lio/图片/6.png)
+![6](./figures/6.png)
 
 bootasm.S文件中中汇编代码为:
 ```

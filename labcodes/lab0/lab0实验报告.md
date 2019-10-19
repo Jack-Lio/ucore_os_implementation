@@ -20,17 +20,17 @@
 ### 1.3 Ｕ盘启动
 这一步也基本没有什么坑，很顺利就能够进入Ｕ盘启动的安装引导页面，这里我用的是Dell的电脑，基本在开机按F12就可以直接进入BIOS设置页面选择U盘启动。
 
-![BIOS启动页面](.\figures\bios-setup.jpg)
+![BIOS启动页面](./figures/bios-setup.jpg)
 
 之后可以选择进入try ubuntu 系统还是直接安装，安装后会出现安装引导。
 
-![安装引导](.\figures\setup.jpg)
+![安装引导](./figures/setup.jpg)
 
 在这里有个选择安装的方式，网上很多的博客都是说选择“其他选项”安装，好像直接选择共存安装会因为一些默认设置导致和原系统冲突安装失败，所以我也没有尝试，直接选择了其他选项，其他选项最重要的工作就是引导分区和系统分区大小以及挂载点的设置，这里也是我掉的第一个坑。
 
-![分区](.\figures\area.jpg)
+![分区](./figures/area.jpg)
 
-![设置分区](.\figures\set1.jpg)
+![设置分区](./figures/set1.jpg)
 对于分区大小到底怎么设置，网上的说法各种各样，第一次安装参考的博客推荐的分区基本正确，***但是在boot分区上只设置了200MB，装完系统后基本就满了，只有四个内核就装不下了，启动问题也比较多***。参考多方资料几次折腾之后，确定的分区为
 
 ```
@@ -61,7 +61,7 @@ sudo apt-get install -y boot-repair && boot-repair
 ```
 - 启动后boot-repair扫描机器状况后会显示修复引导选项
 
-![修复](.\figures\repair.jpg)
+![修复](./figures/repair.jpg)
 -  点击箭头所指向选项即可，修复成功之后会提示重启
 
 > 上述操作之后，有可能不会出现引导界面，可能需要进入 ***BIOS setup 修改引导的优先级***，将Ubuntu引导设置在最前面；也有可能 ***出现的系统引导页面有许多奇怪的引导选项***，可以选择进入Ubuntu系统进行grub修改，消除这些多余的引导。具体做法可参考[ubuntu引导修复](https://blog.csdn.net/piaocoder/article/details/50589667)
