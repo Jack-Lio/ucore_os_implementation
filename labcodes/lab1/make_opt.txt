@@ -1,0 +1,23 @@
++ cc kern/init/init.c
++ cc kern/libs/stdio.c
++ cc kern/libs/readline.c
++ cc kern/debug/panic.c
++ cc kern/debug/kdebug.c
++ cc kern/debug/kmonitor.c
++ cc kern/driver/clock.c
++ cc kern/driver/console.c
++ cc kern/driver/picirq.c
++ cc kern/driver/intr.c
++ cc kern/trap/trap.c
++ cc kern/trap/vectors.S
++ cc kern/trap/trapentry.S
++ cc kern/mm/pmm.c
++ cc libs/string.c
++ cc libs/printfmt.c
++ ld bin/kernel
++ cc boot/bootasm.S
++ cc boot/bootmain.c
++ cc tools/sign.c
++ ld bin/bootblock
+'obj/bootblock.out' size: 492 bytes
+build 512 bytes boot sector: 'bin/bootblock' success!
