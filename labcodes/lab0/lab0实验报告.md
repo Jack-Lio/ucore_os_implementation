@@ -132,7 +132,8 @@ cat常用参数列表
   -t                        与-vT 等价
   -T, --show-tabs           将跳格字符显示为^I
   -u                        (被忽略)
-  -v, --show-nonprinting    使用^ 和M- 引用，除了LFD和 TAB 之外
+  -v, --show-nonprinting
+   使用^ 和M- 引用，除了LFD和 TAB 之外
       --help                显示此帮助信息并退出
       --version             显示版本信息并退出
 ```
@@ -141,12 +142,17 @@ more：
 1、命令格式
  more [-dlfpcsu] [-num] [+/pattern] [+linenum] [file ...]
 2、命令功能
-more命令和cat的功能一样都是查看文件里的内容，但有所不同的是more可以按页来查看文件的内容，还支持直接跳转行等功能。
+more命令和cat的功能一样都是查看文件里的内容，
+但有所不同的是more可以按页来查看文件的内容，
+还支持直接跳转行等功能。
 3、常用参数列表
      -num  一次显示的行数
      -d    在每屏的底部显示友好的提示信息
-     -l    忽略 Ctrl+l （换页符）。如果没有给出这个选项，则more命令在显示了一个包含有 Ctrl+l 字符的行后将暂停显示，并等待接收命令。
-     -f     计算行数时，以实际上的行数，而非自动换行过后的行数（有些单行字数太长的会被扩展为两行或两行以上）
+     -l    忽略 Ctrl+l （换页符）。如果没有给出这个选项，
+     则more命令在显示了一个包含有 Ctrl+l 字符的行后将暂停显示，
+     并等待接收命令。
+     -f     计算行数时，以实际上的行数，而非自动换行过后的行数
+     （有些单行字数太长的会被扩展为两行或两行以上）
      -p     显示下一屏之前先清屏。
      -c    从顶部清屏然后显示。
      -s    文件中连续的空白行压缩成一个空白行显示。
@@ -169,7 +175,9 @@ less：
 1．命令格式：
 less [参数]  文件
 2．命令功能：
-less 与 more 类似，但使用 less 可以随意浏览文件，而 more 仅能向前移动，却不能向后移动，而且 less 在查看之前不会加载整个文件。
+less 与 more 类似，但使用 less 可以随意浏览文件，
+而 more 仅能向前移动，却不能向后移动，
+而且 less 在查看之前不会加载整个文件。
 3．命令参数：
 -b <缓冲区大小> 设置缓冲区的大小
 -e  当文件显示结束后，自动离开
@@ -255,12 +263,14 @@ patch –R –p1 <to-docu.patch
   4、-c: 会直接生成二进制目标文件
   例：命令：gcc -c test.c //会生成test.o文件
   5、-o :对生成的目标进行重命名
-  例：命令：gcc -o test test.c //会生成名字是test可执行文件而不是默认的a.out
+  例：命令：gcc -o test test.c
+  //会生成名字是test可执行文件而不是默认的a.out
   6、-pipe: 使用管道代替编译中的临时文件
   例：命令：gcc -pipe -o test test.c
   7、-include file :包含某个代码。相当于在文件中加入#include
   例：gcc test.c -include /root/file.h
-  8、-Idir：当你使用#include”file”的时候，会先到你定制的目录里面查找
+  8、-Idir：当你使用#include”file”的时候，
+            会先到你定制的目录里面查找
   9、-I-：取消前一个参数的功能。一般在-Idir之后使用
   10、-C：在预处理的时候不删除注释信息，一般和-E使用。
   11、-M：生成文件关联信息。包含目标文件所依赖的所有源代码。
@@ -269,14 +279,17 @@ patch –R –p1 <to-docu.patch
   14、-MMD:和-MM相同，将输出导入到”.d”文件里面。
   15、-llibrary:定制编译的时候使用的库
   例：gcc -lpthread test.c //在编译的时候要依赖pthread这个库
-  16、-Ldir:定制编译的时候搜索库的路径。如果是自己定制的库，可以用它来定制搜索目录，否则编译器只在标准库目录里面找，dir就是目录的名字
+  16、-Ldir:定制编译的时候搜索库的路径。如果是自己定制的库，
+          可以用它来定制搜索目录，否则编译器只在标准库目录里面找，
+          dir就是目录的名字
   17、-O0(字母o和数字0):没有优化
   -O1：-O1位缺省值
   -O2：二级优化
   -O3：最高级优化
   级别越大优化越好，但编译时间边长。
   18、-g:在编译的时候假如debug调试信息，用于gdb调试
-  19、-share：此选项尽量的使用动态库，所以生成文件比较小，但是必须是系统有动态库。
+  19、-share：此选项尽量的使用动态库，所以生成文件比较小，
+              但是必须是系统有动态库。
   20、-shared:生成共享目标文件，通常用在建立共享库。
   21、-static:链接时使用静态链接，但是要保证系统中有静态库。
   22、-w：不生成任何警告信息
@@ -310,7 +323,8 @@ patch –R –p1 <to-docu.patch
 ```
     break  function 进入制定函数时停住
     break linenum   指定断点行号
-    break +offset/-offset  在当前行号的前面或者后面offse行打断点
+    break +offset/-offset  
+              在当前行号的前面或者后面offse行打断点
     break filename：linenum  在源文件的某一行打断点
     break filename：function  同上
     break  *address  在程序运行的内存地址处打断点
@@ -330,11 +344,16 @@ patch –R –p1 <to-docu.patch
     当event发生时，停住程序。event可以是下面的内容：
 throw 一个C++抛出的异常。（throw为关键字）
 catch 一个C++捕捉到的异常。（catch为关键字）
-exec 调用系统调用exec时。（exec为关键字，目前此功能只在HP-UX下有用）
-fork 调用系统调用fork时。（fork为关键字，目前此功能只在HP-UX下有用）
-vfork 调用系统调用vfork时。（vfork为关键字，目前此功能只在HP-UX下有用）
-load 或 load <libname> 载入共享库（动态链接库）时。（load为关键字，目前此功能只在HP-UX下有用）
-unload 或 unload <libname> 卸载共享库（动态链接库）时。（unload为关键字，目前此功能只在HP-UX下有用）
+exec 调用系统调用exec时。
+（exec为关键字，目前此功能只在HP-UX下有用）
+fork 调用系统调用fork时。
+（fork为关键字，目前此功能只在HP-UX下有用）
+vfork 调用系统调用vfork时。
+（vfork为关键字，目前此功能只在HP-UX下有用）
+load 或 load <libname> 载入共享库（动态链接库）时。
+（load为关键字，目前此功能只在HP-UX下有用）
+unload 或 unload <libname> 卸载共享库(动态链接库)时。
+（unload为关键字，目前此功能只在HP-UX下有用）
 tcatch <event>
 只设置一次捕捉点，当程序停住以後，该点被自动删除
   ```
@@ -345,7 +364,8 @@ tcatch <event>
           ```
 命令格式：handle <signal> <keywords...>
           nostop
-    当被调试的程序收到信号时，GDB不会停住程序的运行，但会打出消息告诉你收到这种信号。
+    当被调试的程序收到信号时，GDB不会停住程序的运行，
+    但会打出消息告诉你收到这种信号。
     stop
     当被调试的程序收到信号时，GDB会停住你的程序。
     print
@@ -354,10 +374,12 @@ tcatch <event>
     当被调试的程序收到信号时，GDB不会告诉你收到信号的信息。
     pass
     noignore
-    当被调试的程序收到信号时，GDB不处理信号。这表示，GDB会把这个信号交给被调试程序处理。
+    当被调试的程序收到信号时，GDB不处理信号。这表示，
+    GDB会把这个信号交给被调试程序处理。
     nopass
     ignore
-    当被调试的程序收到信号时，GDB不会让被调试程序来处理这个信号。
+    当被调试的程序收到信号时，
+    GDB不会让被调试程序来处理这个信号。
     info signals
     info handle
     查看有哪些信号在被GDB检测中。
@@ -368,14 +390,17 @@ tcatch <event>
       -  `info line` 查看源代码在内存中的地址，info line后面可以跟“行号”，“函数名”，“文件名:行号”，“文件名:函数名”，这个命令会打印出所指定的源码在运行时的内存地址
       ```
       (gdb) info line tst.c:func
-Line 5 of "tst.c" starts at address 0x8048456 <func+6> and ends at 0x804845d <func+13>.
+Line 5 of "tst.c" starts at address 0x8048456 <func+6> \
+and ends at 0x804845d <func+13>.
       ```
       - `disassemble`可以查看当前执行的机器码的汇编指令
       - 调试程序时，当程序被停住时，你可以使用print命令（简写命令为p），或是同义命令inspect来查看当前程序的运行数据。print命令的格式是：
       ```
       print <expr>
       print /<f> <expr>
-      <expr>是表达式，是你所调试的程序的语言的表达式（GDB可以调试多种编程语言），<f>是输出的格式，比如，如果要把表达式按16进制的格式输出，那么就是/x。
+      <expr>是表达式，是你所调试的程序的语言的表达式
+    （GDB可以调试多种编程语言），<f>是输出的格式，
+    比如，如果要把表达式按16进制的格式输出，那么就是/x。
       ```
       - 变量输出格式
       ```
@@ -414,8 +439,9 @@ $26 = 1100101
 "$a" == "$b"
 判断$a和$b是否相等
 &&和||操作符
-[ -f "/etc/shadow" ] && echo "This computer uses shadow passwords"这里的
-判断是否是一个文件
+[ -f "/etc/shadow" ] && echo\
+"This computer uses shadow passwords"
+这里的判断是否是一个文件
 -x "/bin/ls"
 判断/bin/ls是否存在并有可执行权限
 -n "$var"
@@ -425,17 +451,19 @@ $26 = 1100101
 ```
 >   2. &&和||操作符
 ```
-[ -f "/etc/shadow" ] && echo "This computer uses shadow  passwords"
+[ -f "/etc/shadow" ] && echo \
+"This computer uses shadow  passwords"
 ```
 这里的 && 就是一个快捷操作符，如果左边的表达式为真（返回 0——“成功”）则执行右边的语句，你也可以把它看作逻辑运算里的与操作。上述脚本表示如果/etc/shadow文件存在，则打印“This computer uses shadow passwords”。
       ```
 #!/bin/bash
 mailfolder=/var/spool/mail/james
-[ -r "$mailfolder" ] || { echo "Can not read $mailfolder"; exit 1; }
+[ -r "$mailfolder" ] || \
+{ echo "Can not read $mailfolder"; exit 1; }
 echo "$mailfolder has mail from:"
 grep "^From " $mailfolder
       ```
-该脚本首先判断mailfolder是否可读，如果可读则打印该文件中以"From"开头的行。如果不可读则或操作生效，打印错误信息后脚本退出。需要注意的是，这里我们必须使用如下两个命令：
+该脚本首先判断mailfolder是否可读，如果可读则打印该文件中以"From"开头的行。如果不可读则或操作生效，打印错误信息后脚本退出。需要注意的是，这里我们必须如下方式使用连续的两个命令：
     -   ***花括号将两个命令组合起来当做一个命令使用***    
   >   3.  case 语句    
         ```
