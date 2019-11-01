@@ -114,3 +114,4 @@ lab1_switch_test(void) {
     lab1_switch_to_kernel();
     lab1_print_cur_status();
 }
+

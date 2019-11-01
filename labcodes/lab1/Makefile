@@ -218,7 +218,7 @@ qemu-nox: $(UCOREIMG)
 TERMINAL        :=gnome-terminal
 debug: $(UCOREIMG)
 	#$(V)$(QEMU) -S -s -parallel stdio -hda $< -serial null &					# change 1016
-	$(V)$(TERMINAL) -e "$(QEMU) -S -s -d  in_asm -D  q.log  -parallel stdio -hda $< -serial null"
+	$(V)$(TERMINAL) -e "$(QEMU) -S -s -d  in_asm -D  bin/q.log  -parallel stdio -hda $< -serial null"
 	$(V)sleep 2
 	$(V)$(TERMINAL) -e "gdb -q -tui -x tools/gdbinit"
 
