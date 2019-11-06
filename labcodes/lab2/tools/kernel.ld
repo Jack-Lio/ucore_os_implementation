@@ -1,3 +1,8 @@
+/*   “.”表示当前地址,“.text”表示代码段起始地址,“.data”也是一个地址,可以看出,它即
+表了代码段的结束地址,也是数据段的起始地址。类推下去,“edata”表示数据段的结束地
+ 址,“.bss”表示数据段的结束地址和BSS段的起始地址,而“end”表示BSS段的结束地址。
+*/
+
 /* Simple linker script for the ucore kernel.
    See the GNU ld 'info' manual ("info ld") to learn the syntax. */
 

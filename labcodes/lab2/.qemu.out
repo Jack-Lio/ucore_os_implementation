@@ -1,0 +1,102 @@
+c[?7l[2J[0mSeaBIOS (version rel-1.12.1-0-ga5cab58e9a3f-prebuilt.qemu.org)
+
+
+iPXE (http://ipxe.org) 00:03.0 C980 PCI2.10 PnP PMM+07F91410+07EF1410 C980
+Press Ctrl-B to configure iPXE (PCI 00:03.0)...                                                                               
+
+
+Booting from Hard Disk..(THU.CST) os is loading ...
+
+Special kernel symbols:
+  entry  0xc0100036 (phys)
+  etext  0xc01060fa (phys)
+  edata  0xc011b000 (phys)
+  end    0xc011bf28 (phys)
+Kernel executable memory footprint: 112KB
+-> ebp:0xc0117f38   eip:0xc0100aa9   args: 0x00010094 0x00010094 0xc0117f68 0xc01000cd 
+    kern/debug/kdebug.c:310: print_stackframe+21
+-> ebp:0xc0117f48   eip:0xc0100da6   args: 0x00000000 0x00000000 0x00000000 0xc0117fb8 
+    kern/debug/kmonitor.c:129: mon_backtrace+10
+-> ebp:0xc0117f68   eip:0xc01000cd   args: 0x00000000 0xc0117f90 0xffff0000 0xc0117f94 
+    kern/init/init.c:51: grade_backtrace2+33
+-> ebp:0xc0117f88   eip:0xc01000f7   args: 0x00000000 0xffff0000 0xc0117fb4 0x0000002a 
+    kern/init/init.c:56: grade_backtrace1+38
+-> ebp:0xc0117fa8   eip:0xc0100116   args: 0x00000000 0xc0100036 0xffff0000 0x0000001d 
+    kern/init/init.c:61: grade_backtrace0+23
+-> ebp:0xc0117fc8   eip:0xc010013c   args: 0xc010611c 0xc0106100 0x00000f28 0x00000000 
+    kern/init/init.c:66: grade_backtrace+34
+-> ebp:0xc0117ff8   eip:0xc010008b   args: 0xc0106304 0xc010630c 0xc0100d2e 0xc010632b 
+    kern/init/init.c:31: kern_init+84
+memory management: default_pmm_manager
+e820map:
+  memory: 0009fc00, [00000000, 0009fbff], type = 1.
+  memory: 00000400, [0009fc00, 0009ffff], type = 2.
+  memory: 00010000, [000f0000, 000fffff], type = 2.
+  memory: 07ee0000, [00100000, 07fdffff], type = 1.
+  memory: 00020000, [07fe0000, 07ffffff], type = 2.
+  memory: 00040000, [fffc0000, ffffffff], type = 2.
+check_alloc_page() succeeded!
+check_pgdir() succeeded!
+check_boot_pgdir() succeeded!
+-------------------- BEGIN --------------------
+PDE(0e0) c0000000-f8000000 38000000 urw
+  |-- PTE(38000) c0000000-f8000000 38000000 -rw
+PDE(001) fac00000-fb000000 00400000 -rw
+  |-- PTE(000e0) faf00000-fafe0000 000e0000 urw
+  |-- PTE(00001) fafeb000-fafec000 00001000 -rw
+--------------------- END ---------------------
+++ setup timer interrupts
+0: @ring 0
+0:  cs = 8
+0:  ds = 10
+0:  es = 10
+0:  ss = 10
++++ switch to  user  mode +++
+100 ticks
+End of Test.
+kernel panic at kern/trap/trap.c:18:
+    EOT: kernel seems ok.
+stack trackback:
+-> ebp:0xc0117ea8   eip:0xc0100aa9   args: 0xc01061c8 0xc0117eec 0x00000012 0x00000000 
+    kern/debug/kdebug.c:310: print_stackframe+21
+-> ebp:0xc0117ed8   eip:0xc0100461   args: 0xc010648e 0x00000012 0xc0106478 0x23000000 
+    kern/debug/panic.c:27: __panic+103
+-> ebp:0xc0117ef8   eip:0xc01018f9   args: 0x1bc01002 0x86000000 0xa0000032 0x23c0117f 
+    kern/trap/trap.c:0: print_ticks+65
+-> ebp:0xc0117f88   eip:0xc0101da9   args: 0xc0117fb4 0xc0100205 0x00000008 0x00000286 
+    kern/trap/trap.c:161: trap_dispatch+140
+-> ebp:0xc0117fa8   eip:0xc0101f95   args: 0xc0117fb4 0x0000807c 0x00010094 0xc0117fa8 
+    kern/trap/trap.c:219: trap+16
+-> ebp:0xc0117fa8   eip:0xc0102a20   args: 0xc0117fb4 0x0000807c 0x00010094 0xc0117fa8 
+    kern/trap/trapentry.S:24: <unknown>+0
+-> ebp:0xc0117fa8   eip:0xc0102a20   args: 0xc0117fb4 0x0000807c 0x00010094 0xc0117fa8 
+    kern/trap/trapentry.S:24: <unknown>+0
+-> ebp:0xc0117fa8   eip:0xc0102a20   args: 0xc0117fb4 0x0000807c 0x00010094 0xc0117fa8 
+    kern/trap/trapentry.S:24: <unknown>+0
+-> ebp:0xc0117fa8   eip:0xc0102a20   args: 0xc0117fb4 0x0000807c 0x00010094 0xc0117fa8 
+    kern/trap/trapentry.S:24: <unknown>+0
+-> ebp:0xc0117fa8   eip:0xc0102a20   args: 0xc0117fb4 0x0000807c 0x00010094 0xc0117fa8 
+    kern/trap/trapentry.S:24: <unknown>+0
+-> ebp:0xc0117fa8   eip:0xc0102a20   args: 0xc0117fb4 0x0000807c 0x00010094 0xc0117fa8 
+    kern/trap/trapentry.S:24: <unknown>+0
+-> ebp:0xc0117fa8   eip:0xc0102a20   args: 0xc0117fb4 0x0000807c 0x00010094 0xc0117fa8 
+    kern/trap/trapentry.S:24: <unknown>+0
+-> ebp:0xc0117fa8   eip:0xc0102a20   args: 0xc0117fb4 0x0000807c 0x00010094 0xc0117fa8 
+    kern/trap/trapentry.S:24: <unknown>+0
+-> ebp:0xc0117fa8   eip:0xc0102a20   args: 0xc0117fb4 0x0000807c 0x00010094 0xc0117fa8 
+    kern/trap/trapentry.S:24: <unknown>+0
+-> ebp:0xc0117fa8   eip:0xc0102a20   args: 0xc0117fb4 0x0000807c 0x00010094 0xc0117fa8 
+    kern/trap/trapentry.S:24: <unknown>+0
+-> ebp:0xc0117fa8   eip:0xc0102a20   args: 0xc0117fb4 0x0000807c 0x00010094 0xc0117fa8 
+    kern/trap/trapentry.S:24: <unknown>+0
+-> ebp:0xc0117fa8   eip:0xc0102a20   args: 0xc0117fb4 0x0000807c 0x00010094 0xc0117fa8 
+    kern/trap/trapentry.S:24: <unknown>+0
+-> ebp:0xc0117fa8   eip:0xc0102a20   args: 0xc0117fb4 0x0000807c 0x00010094 0xc0117fa8 
+    kern/trap/trapentry.S:24: <unknown>+0
+-> ebp:0xc0117fa8   eip:0xc0102a20   args: 0xc0117fb4 0x0000807c 0x00010094 0xc0117fa8 
+    kern/trap/trapentry.S:24: <unknown>+0
+-> ebp:0xc0117fa8   eip:0xc0102a20   args: 0xc0117fb4 0x0000807c 0x00010094 0xc0117fa8 
+    kern/trap/trapentry.S:24: <unknown>+0
+Welcome to the kernel debug monitor!!
+Type 'help' for a list of commands.
+K> 

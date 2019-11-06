@@ -193,6 +193,7 @@ nr_free_pages(void) {
 // 初始化pmm
 static void
 page_init(void) {
+    //申明一个e820map变量，从0x8000开始
     struct e820map *memmap = (struct e820map *)(0x8000 + KERNBASE);
     uint64_t maxpa = 0;
 
