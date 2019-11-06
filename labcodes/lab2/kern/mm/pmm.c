@@ -209,19 +209,19 @@ page_init(void) {
             }
         }
     }
-    if (maxpa > KMEMSIZE) {   //获得内核区边界
+    if (maxpa > KMEMSIZE) {   //获得最大的内存地址，从而获取需要管理的内存页个数
         maxpa = KMEMSIZE;
     }
 
     extern char end[];
 
-    npage = maxpa / PGSIZE;
-    pages = (struct Page *)ROUNDUP((void *)end, PGSIZE);
+    npage = maxpa / PGSIZE;   //获取需要管理的页数
+    pages = (struct Page *)ROUNDUP((void *)end, PGSIZE);    //向上取整获取管理内存空间的开始地址
     //为所有的页设置保留位为1，即为内核保留的页空间
     for (i = 0; i < npage; i ++) {
         SetPageReserved(pages + i);
     }
-
+//获取空闲内存空间起始地址
     uintptr_t freemem = PADDR((uintptr_t)pages + sizeof(struct Page) * npage);
 
     for (i = 0; i < memmap->nr_map; i ++) {
@@ -234,9 +234,11 @@ page_init(void) {
                 end = KMEMSIZE;
             }
             if (begin < end) {
+              //获得空闲空间的开始地址和结束地址
                 begin = ROUNDUP(begin, PGSIZE);
                 end = ROUNDDOWN(end, PGSIZE);
                 if (begin < end) {
+                  //将page结构中的flags位和引用位ref清零，并加入空闲链表管理
                     init_memmap(pa2page(begin), (end - begin) / PGSIZE);
                 }
             }
@@ -306,6 +308,7 @@ pmm_init(void) {
 
     // map all physical memory to linear memory with base linear addr KERNBASE
     // linear_addr KERNBASE ~ KERNBASE + KMEMSIZE = phy_addr 0 ~ KMEMSIZE
+    //将4MB之外的线性地址映射到物理地址
     boot_map_segment(boot_pgdir, KERNBASE, KMEMSIZE, 0, PTE_W);
 
     // Since we are using bootloader's GDT,
