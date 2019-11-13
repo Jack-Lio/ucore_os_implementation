@@ -154,7 +154,7 @@ struct Page *
 alloc_pages(size_t n) {
     struct Page *page=NULL;
     bool intr_flag;
-    local_intr_save(intr_flag); //先关闭中断，再调用pmm_manager 的alloc_pages()函数进行页分配
+    local_intr_save(intr_flag); //在sync中定义的函数，先关闭中断，再调用pmm_manager 的alloc_pages()函数进行页分配
     {
         page = pmm_manager->alloc_pages(n);
     }

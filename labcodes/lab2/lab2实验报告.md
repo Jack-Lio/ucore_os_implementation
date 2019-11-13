@@ -29,7 +29,7 @@ ucore启动之后对于内存和地址映射的处理主要分为三大块内容
 在pmm.c文件中，实现了页式物理内存管理的机制构建，在default_pmm.[ch]中提供了简单的基于first fit页表管理策略的实现，内存管理的主要宏定义在mmu.h文件中完成，pmm.h文件中定义了pmm_manager数据结构，提供了物理内存管理的基本框架。
 
 ## 练习1
-练习1需要在已有代码的基础上完成一个简单的first fit物理内存分配算法的实现。需要修改的代码位于default_pmm.c文件中，修改之后的代码和相关的解释说明如下：
+练习1需要在已有代码的基础上完成一个简单的first fit物理内存分配算法的实现。本来以为需要完成所有的几个函数的编程，结果到源代码中一看，发现都写好了，就想着直接跑一下，还是不行，后来仔细看了代码发现是源代码不是完整的first fit实现，内存块的保存没有顺序，所以需要修改一下这部分的源代码。需要修改的代码位于default_pmm.c文件中，修改之后的代码和相关的解释说明如下：
 ```c++
 free_area_t free_area;    //申明空闲内存管理的数据结构，包含空闲内存块的数量，和一个空闲内存列表
 
@@ -145,17 +145,18 @@ default_nr_free_pages(void) {
     return nr_free;
 }
 ```
-**改进:**在alloc_page过程中，如果当前要求的内存大小小于分配页的内存大小的时候，分配该页之后剩下的内存空间可以考虑和后面可能空闲的区块进行合并，找到剩余页内存空间后面是否紧跟着空闲区块，如果存在，则直接和后面的空闲区块合并，节省之后可能存在的合并操作，提高效率。
+**改进:**在alloc_page过程中，如果当前要求的内存大小小于分配页的内存大小的时候，分配该页之后剩下的内存空间可以考虑和后面可能空闲的区块进行合并，找到剩余页内存空间后面是否紧跟着空闲区块，如果存在，则直接和后面的空闲区块合并，节省之后可能存在的合并操作，提高效率。或者在查询页表项的时候可以采用查询优化算法优化查询表项的过程。
 ## 练习2
 问题1：描述页目录项(Pag Director Entry)和页表(Page Table Entry)中每个组成部分的含
 义和以及对ucore而言的潜在用处。
-pte和pde都是32位长，分别包含页帧位（20位 ，用来索引页表或页目录的内存位置）和多个标志位，以下是pte和pde的标志位：
+  - pte和pde都是32位长，分别包含页帧位（高20位 ，用来索引页表或页目录的内存位置）和多个标志位，由于两者很多的标志位功能都差不多，因此在Ucore中并没有做区分，两者的标志位设置都是公用的，以下是pte和pde的标志位：
+
 ```C++
 /* page table/directory entry flags */
 #define PTE_P           0x001                   // Present  存在位，判断该页是否分配了物理内存
 #define PTE_W           0x002                   // Writeable 可写位，标志该页是够可以修改
 #define PTE_U           0x004                   // User  用户可访问权限设置位
-#define PTE_PWT         0x008                   // Write-Through  写直达，内存磁盘数据同步机制
+#define PTE_PWT         0x008          // Write-Through  写直达，CPU数据可以直写回内存
 #define PTE_PCD         0x010                   
 /* Cache-Disable  高速缓存禁止位（辅存地址位）：对于那些映射到设备寄存器而不是常规内存的页面有
 用，假设操作系统正在循环等待某个I/O设备对其指令进行响应，保证硬件不断的从设备中读取数据而不是
@@ -163,7 +164,7 @@ pte和pde都是32位长，分别包含页帧位（20位 ，用来索引页表或
 
 #define PTE_A           0x020      // Accessed   已访问位，判断改页是否近期被访问过，有利于回收机制实现
 #define PTE_D           0x040      // Dirty 脏位，判断是否被修改，可以不必写回未修改页
-#define PTE_PS          0x080                   // Page Size
+#define PTE_PS          0x080                   // Page Size  表示一个页的大小为4MB
 #define PTE_MBZ         0x180                   // Bits must be zero  
 #define PTE_AVAIL       0xE00                   
 // Available for software use  用户进程自定义位，使用户程序具有一定的操作空间
@@ -173,7 +174,12 @@ pte和pde都是32位长，分别包含页帧位（20位 ，用来索引页表或
 #define PTE_USER        (PTE_U | PTE_W | PTE_P)   //用户页表的默认设置
 ```
 问题2：如果ucore执行过程中访问内存,出现了页访问异常,请问硬件要做哪些事情?
+- 首先会保存当前的CPU现场状态，然后会调用14号中断（处理page fault的中断）处理访存异常，返回后会恢复调用中断前的cpu状态，然后会重新执行该访存指令。
 
+在trap.h中定义了处理page fault的中断序号如下：
+```c++
+#define T_PGFLT                 14  // page fault
+```
 页式内存管理机制的具体示意图如下：
 ![页式内存管理机制](./figures/页表机制.png)
 练习2中需要对get_pte函数进行完善，实现获取页表项的功能，根据注释内容完成编程，具体实现代码如下：
@@ -211,27 +217,52 @@ get_pte(pde_t *pgdir, uintptr_t la, bool create) {
 #if 1
     pde_t *pdep = &pgdir[PDX(la)];   // (1) find page directory entry   
     //通过参数中的pgdir加上页表目录偏移量获取页表目录项地址
-    if (!(*pdep&PTE_P)) {              // (2) check if entry is not present
+    if (!(*pdep&PTE_P)) {              // (2) check if entry is not present判断是否存在物理映射
     struct Page*page;
     if(!create)  return NULL;                // (3) check if creating is needed, then alloc page for page table
-                                                            //不需要分配，直接返回NULL
-    page = alloc_page();
+                                                            //不存在物理映射且不需要分配，直接返回NULL
+    page = alloc_page();  //否则，调用alloc函数分配一个空闲的物理页帧
     if(page==NULL)   return NULL; //没有找到能够分配的页
                                                           // CAUTION: this page is used for page table, not for common data page
-    set_page_ref(page,1);     // (4) set page reference
-    uintptr_t pa =page2pa(page); // (5) get linear address of page
-    memset(KADDR(pa),0,PGSIZE);             // (6) clear page content using memset
+    set_page_ref(page,1);     // (4) set page reference  设置新分配的页访问位为1
+    uintptr_t pa =page2pa(page); // (5) get linear address of page  获得线性地址（也就是物理地址）
+    memset(KADDR(pa),0,PGSIZE);             // (6) clear page content using memset  清除页表项内容
     // (7) set page directory entry's permission  设置和物理地址，可写，用户可访问，可用位
     *pdep =pa|PTE_W|PTE_P|PTE_U;                      
     }
-     // (8) return page table entry  拼接页表项、页表目录、表内偏移，得到物理地址之后转为虚拟地址返回
+     // (8) return page table entry  
+     //la 需要映射的线性地址（物理地址）
+     //*pdep  二级页表的线性地址
+     // PDE_ADDR  截取地址的前20位,获取页目录表的地址
+     // PTX(la)获取线性地址在二级页表中的偏移量
+     //KADDR 将页目录表地址转为内核虚拟地址
+     //将页目录项内容中存储的页表虚拟地址加上页表项偏移获取目的页表项，返回其地址
     return &((pte_t*)KADDR(PDE_ADDR(*pdep)))[PTX(la)];         
 #endif
 }
 ```
 ## 练习3
-问题1：
-问题2：
+问题1：数据结构Page的全局变量(其实是一个数组)的每一项与页表中的页目录项和页表项有
+无对应关系?如果有,其对应关系是啥?
+- 有对应关系，pages的每一项对应一个物理页，而页目录项和页表项本身都是一个物理页，其本身也是pages中的一项，对应关系映射关系其实就是PNN对应的关系，通过PNN（） 得到页目录和页表地址的高20位索引所对应的page。
+
+问题2：如果希望虚拟地址与物理地址相等,则需要如何修改lab2,完成此事? 鼓励通过编程来
+具体完成这个问题
+- 在实验手册中说明了虚拟地址和物理地址之间转换关系是在链接过程中出现偏移量的，将kernel.ld中的链接地址修改一下：
+```c++
+SECTIONS {
+    /* Load the kernel at this address: "." means the current address */
+    . = 0xC0100000;        //这里将虚拟地址和物理地址设置了0xc0000000的偏移
+    //此时pysical addr + 0xc0000000 = virtual addr  所以需要将这个改为0x00100000
+
+    .text : {
+        *(.text .stub .text.* .gnu.linkonce.t.*)
+    }
+................
+}
+```
+然后在memlayout.h中定义了kernelbase作为偏移量，我们通过kADDR获得的将物理地址转为虚拟地址都是通过对物理地址+0xc0000000实现的，所以同样需要将kernelbase修改为0x0。
+
 练习3中需要完成对于页表项的释放工作，需要根据函数参数中的虚地址释放对应的页，根据注释完成代码如下所示：
 ```c++
 //page_remove_pte - free an Page sturct which is related linear address la
@@ -256,7 +287,7 @@ page_remove_pte(pde_t *pgdir, uintptr_t la, pte_t *ptep) {
      *   PTE_P           0x001                   // page table/directory entry flags bit : Present
      */
 #if 1
-//检查中断位，看页表项是够分配了对应的物理内存
+//检查中断位，看页表项是够分配了对应的物理内存，二级页表项存在与否
     if (*ptep&PTE_P) {                      //(1) check if this page table entry is present ？  
       //找到相应的页
         struct Page *page =pte2page(*ptep); //(2) find corresponding page to pte
