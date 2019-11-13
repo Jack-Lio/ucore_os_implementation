@@ -249,6 +249,7 @@ get_pte(pde_t *pgdir, uintptr_t la, bool create) {
 问题2：如果希望虚拟地址与物理地址相等,则需要如何修改lab2,完成此事? 鼓励通过编程来
 具体完成这个问题
 - 在实验手册中说明了虚拟地址和物理地址之间转换关系是在链接过程中出现偏移量的，将kernel.ld中的链接地址修改一下：
+
 ```c++
 SECTIONS {
     /* Load the kernel at this address: "." means the current address */
@@ -261,7 +262,67 @@ SECTIONS {
 ................
 }
 ```
-然后在memlayout.h中定义了kernelbase作为偏移量，我们通过kADDR获得的将物理地址转为虚拟地址都是通过对物理地址+0xc0000000实现的，所以同样需要将kernelbase修改为0x0。
+- 然后在memlayout.h中定义了kernelbase作为偏移量，我们通过kADDR获得的将物理地址转为虚拟地址都是通过对物理地址+0xc0000000实现的，所以同样需要将kernelbase修改为0x0。但是这样还是不能够正常执行，在网上参考已有的资料之后，发现需要修改entry.S 中的unmap va 0~4M代码，把它注释掉，make qemu之后正常执行，结果如下：     
+
+```c++
+jack-lio@jack-lio:~/文档/ucore_os_implementation/labcodes/lab2$ make qemu
+WARNING: Image format was not specified for 'bin/ucore.img' and probing guessed raw.
+Automatically detecting the format is dangerous for raw images, write operations
+on block 0 will be restricted.
+Specify the 'raw' format explicitly to remove the restrictions.
+VNC server running on 127.0.0.1:5900
+(THU.CST) os is loading ...
+
+Special kernel symbols:
+  entry  0x0010002f (phys)   //这里的地址不再加上0xc0000000
+  etext  0x00105fbe (phys)
+  edata  0x0011b000 (phys)
+  end    0x0011bf28 (phys)
+Kernel executable memory footprint: 112KB
+-> ebp:0x00117f38   eip:0x00100aa2   args: 0x00010094 0x00010094 0x00117f68 0x001000c6
+    kern/debug/kdebug.c:310: print_stackframe+21
+-> ebp:0x00117f48   eip:0x00100d9f   args: 0x00000000 0x00000000 0x00000000 0x00117fb8
+    kern/debug/kmonitor.c:129: mon_backtrace+10
+-> ebp:0x00117f68   eip:0x001000c6   args: 0x00000000 0x00117f90 0xffff0000 0x00117f94
+    kern/init/init.c:51: grade_backtrace2+33
+-> ebp:0x00117f88   eip:0x001000f0   args: 0x00000000 0xffff0000 0x00117fb4 0x0000002a
+    kern/init/init.c:56: grade_backtrace1+38
+-> ebp:0x00117fa8   eip:0x0010010f   args: 0x00000000 0x0010002f 0xffff0000 0x0000001d
+    kern/init/init.c:61: grade_backtrace0+23
+-> ebp:0x00117fc8   eip:0x00100135   args: 0x00105fdc 0x00105fc0 0x00000f28 0x00000000
+    kern/init/init.c:66: grade_backtrace+34
+-> ebp:0x00117ff8   eip:0x00100084   args: 0x001061c4 0x001061cc 0x00100d27 0x001061eb
+    kern/init/init.c:31: kern_init+84
+memory management: default_pmm_manager
+e820map:
+  memory: 0009fc00, [00000000, 0009fbff], type = 1.
+  memory: 00000400, [0009fc00, 0009ffff], type = 2.
+  memory: 00010000, [000f0000, 000fffff], type = 2.
+  memory: 07ee0000, [00100000, 07fdffff], type = 1.
+  memory: 00020000, [07fe0000, 07ffffff], type = 2.
+  memory: 00040000, [fffc0000, ffffffff], type = 2.
+check_alloc_page() succeeded!
+kernel panic at kern/mm/pmm.c:478:
+    assertion failed: get_page(boot_pgdir, 0x0, NULL) == NULL
+stack trackback:
+-> ebp:0x00117f18   eip:0x00100aa2   args: 0x00106088 0x00117f5c 0x000001de 0x0000001e
+    kern/debug/kdebug.c:310: print_stackframe+21
+-> ebp:0x00117f48   eip:0x0010045a   args: 0x001067d0 0x000001de 0x001067bb 0x00106878
+    kern/debug/panic.c:27: __panic+103
+-> ebp:0x00117f88   eip:0x0010373d   args: 0x00000000 0xffff0000 0x00117fb4 0x0000002a
+    kern/mm/pmm.c:478: check_pgdir+181
+-> ebp:0x00117fc8   eip:0x001032f3   args: 0x00105fdc 0x00105fc0 0x00000f28 0x00000000
+    kern/mm/pmm.c:301: pmm_init+41
+-> ebp:0x00117ff8   eip:0x00100089   args: 0x001061c4 0x001061cc 0x00100d27 0x001061eb
+    kern/init/init.c:33: kern_init+89
+Welcome to the kernel debug monitor!!
+Type 'help' for a list of commands.
+K> qemu-system-i386: terminating on signal 2
+
+```
+- 虽然能够通过分配页的检查函数，但是通不过check_pgdir() succeeded!和check_boot_pgdir()
+succeeded，make  grade之后也没有得分，可能是因为检查函数的默认物理地址和虚拟地址的非一致性。
+
 
 练习3中需要完成对于页表项的释放工作，需要根据函数参数中的虚地址释放对应的页，根据注释完成代码如下所示：
 ```c++
