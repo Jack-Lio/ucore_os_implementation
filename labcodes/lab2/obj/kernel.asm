@@ -36,7 +36,7 @@ c010001c:	ff e0                	jmp    *%eax
 c010001e <next>:
 next:
 
-    # unmap va 0 ~ 4M, it's temporary mapping
+    # unmap va 0 ~ 4M, it's temporary mapping        将boot_pgdir清零
     xorl %eax, %eax
 c010001e:	31 c0                	xor    %eax,%eax
     movl %eax, __boot_pgdir
@@ -55,7 +55,7 @@ c010002f:	e8 02 00 00 00       	call   c0100036 <kern_init>
 
 c0100034 <spin>:
 
-# should never get here
+# should never get here  kern_init出现错误退出进入此无限循环说明系统崩溃
 spin:
     jmp spin
 c0100034:	eb fe                	jmp    c0100034 <spin>
@@ -6861,7 +6861,7 @@ c0102d5c:	83 ec 28             	sub    $0x28,%esp
     struct Page *page=NULL;
 c0102d5f:	c7 45 f4 00 00 00 00 	movl   $0x0,-0xc(%ebp)
     bool intr_flag;
-    local_intr_save(intr_flag); //先关闭中断，再调用pmm_manager 的alloc_pages()函数进行页分配
+    local_intr_save(intr_flag); //在sync中定义的函数，先关闭中断，再调用pmm_manager 的alloc_pages()函数进行页分配
 c0102d66:	e8 2f fe ff ff       	call   c0102b9a <__intr_save>
 c0102d6b:	89 45 f0             	mov    %eax,-0x10(%ebp)
     {
@@ -7082,7 +7082,7 @@ c0102f52:	0f 8c d0 fe ff ff    	jl     c0102e28 <page_init+0x39>
             }
         }
     }
-    if (maxpa > KMEMSIZE) {   //获得内核区边界
+    if (maxpa > KMEMSIZE) {   //获得最大的内存地址，从而获取需要管理的内存页个数
 c0102f58:	83 7d e4 00          	cmpl   $0x0,-0x1c(%ebp)
 c0102f5c:	72 1d                	jb     c0102f7b <page_init+0x18c>
 c0102f5e:	83 7d e4 00          	cmpl   $0x0,-0x1c(%ebp)
@@ -7096,7 +7096,7 @@ c0102f74:	c7 45 e4 00 00 00 00 	movl   $0x0,-0x1c(%ebp)
 
     extern char end[];
 
-    npage = maxpa / PGSIZE;
+    npage = maxpa / PGSIZE;   //获取需要管理的页数
 c0102f7b:	8b 45 e0             	mov    -0x20(%ebp),%eax
 c0102f7e:	8b 55 e4             	mov    -0x1c(%ebp),%edx
 c0102f81:	0f ac d0 0c          	shrd   $0xc,%edx,%eax
@@ -7105,7 +7105,7 @@ c0102f88:	89 c1                	mov    %eax,%ecx
 c0102f8a:	89 d3                	mov    %edx,%ebx
 c0102f8c:	89 c8                	mov    %ecx,%eax
 c0102f8e:	a3 80 be 11 c0       	mov    %eax,0xc011be80
-    pages = (struct Page *)ROUNDUP((void *)end, PGSIZE);
+    pages = (struct Page *)ROUNDUP((void *)end, PGSIZE);    //向上取整获取管理内存空间的开始地址
 c0102f93:	c7 45 c0 00 10 00 00 	movl   $0x1000,-0x40(%ebp)
 c0102f9a:	b8 28 bf 11 c0       	mov    $0xc011bf28,%eax
 c0102f9f:	8d 50 ff             	lea    -0x1(%eax),%edx
@@ -7149,7 +7149,7 @@ c0102ff9:	a1 80 be 11 c0       	mov    0xc011be80,%eax
 c0102ffe:	39 c2                	cmp    %eax,%edx
 c0103000:	72 c6                	jb     c0102fc8 <page_init+0x1d9>
     }
-
+//获取空闲内存空间起始地址
     uintptr_t freemem = PADDR((uintptr_t)pages + sizeof(struct Page) * npage);
 c0103002:	8b 15 80 be 11 c0    	mov    0xc011be80,%edx
 c0103008:	89 d0                	mov    %edx,%eax
@@ -7250,7 +7250,7 @@ c010311d:	3b 55 cc             	cmp    -0x34(%ebp),%edx
 c0103120:	72 09                	jb     c010312b <page_init+0x33c>
 c0103122:	3b 45 c8             	cmp    -0x38(%ebp),%eax
 c0103125:	0f 83 9c 00 00 00    	jae    c01031c7 <page_init+0x3d8>
-                begin = ROUNDUP(begin, PGSIZE);
+              //获得空闲空间的开始地址和结束地址
 c010312b:	c7 45 b0 00 10 00 00 	movl   $0x1000,-0x50(%ebp)
 c0103132:	8b 55 d0             	mov    -0x30(%ebp),%edx
 c0103135:	8b 45 b0             	mov    -0x50(%ebp),%eax
@@ -7265,7 +7265,7 @@ c010314c:	29 d0                	sub    %edx,%eax
 c010314e:	ba 00 00 00 00       	mov    $0x0,%edx
 c0103153:	89 45 d0             	mov    %eax,-0x30(%ebp)
 c0103156:	89 55 d4             	mov    %edx,-0x2c(%ebp)
-                end = ROUNDDOWN(end, PGSIZE);
+                begin = ROUNDUP(begin, PGSIZE);
 c0103159:	8b 45 c8             	mov    -0x38(%ebp),%eax
 c010315c:	89 45 a8             	mov    %eax,-0x58(%ebp)
 c010315f:	8b 45 a8             	mov    -0x58(%ebp),%eax
@@ -7278,7 +7278,7 @@ c0103173:	83 e0 00             	and    $0x0,%eax
 c0103176:	89 c7                	mov    %eax,%edi
 c0103178:	89 75 c8             	mov    %esi,-0x38(%ebp)
 c010317b:	89 7d cc             	mov    %edi,-0x34(%ebp)
-                if (begin < end) {
+                end = ROUNDDOWN(end, PGSIZE);
 c010317e:	8b 45 d0             	mov    -0x30(%ebp),%eax
 c0103181:	8b 55 d4             	mov    -0x2c(%ebp),%edx
 c0103184:	3b 55 cc             	cmp    -0x34(%ebp),%edx
@@ -7287,7 +7287,7 @@ c0103189:	3b 55 cc             	cmp    -0x34(%ebp),%edx
 c010318c:	72 05                	jb     c0103193 <page_init+0x3a4>
 c010318e:	3b 45 c8             	cmp    -0x38(%ebp),%eax
 c0103191:	73 34                	jae    c01031c7 <page_init+0x3d8>
-                    init_memmap(pa2page(begin), (end - begin) / PGSIZE);
+                if (begin < end) {
 c0103193:	8b 45 c8             	mov    -0x38(%ebp),%eax
 c0103196:	8b 55 cc             	mov    -0x34(%ebp),%edx
 c0103199:	2b 45 d0             	sub    -0x30(%ebp),%eax
@@ -7311,11 +7311,11 @@ c01031ca:	8b 45 c4             	mov    -0x3c(%ebp),%eax
 c01031cd:	8b 00                	mov    (%eax),%eax
 c01031cf:	39 45 dc             	cmp    %eax,-0x24(%ebp)
 c01031d2:	0f 8c 89 fe ff ff    	jl     c0103061 <page_init+0x272>
+                  //将page结构中的flags位和引用位ref清零，并加入空闲链表管理
+                    init_memmap(pa2page(begin), (end - begin) / PGSIZE);
                 }
             }
         }
-    }
-}
 c01031d8:	90                   	nop
 c01031d9:	81 c4 9c 00 00 00    	add    $0x9c,%esp
 c01031df:	5b                   	pop    %ebx
@@ -7325,16 +7325,16 @@ c01031e2:	5d                   	pop    %ebp
 c01031e3:	c3                   	ret    
 
 c01031e4 <boot_map_segment>:
+//boot_map_segment - setup&enable the paging mechanism
+// parameters
 //  la:   linear address of this memory need to map (after x86 segment map)
 //  size: memory size
 //  pa:   physical address of this memory
 //  perm: permission of this memory
-static void
-boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, uintptr_t pa, uint32_t perm) {
 c01031e4:	55                   	push   %ebp
 c01031e5:	89 e5                	mov    %esp,%ebp
 c01031e7:	83 ec 38             	sub    $0x38,%esp
-    assert(PGOFF(la) == PGOFF(pa));
+static void
 c01031ea:	8b 45 0c             	mov    0xc(%ebp),%eax
 c01031ed:	33 45 14             	xor    0x14(%ebp),%eax
 c01031f0:	25 ff 0f 00 00       	and    $0xfff,%eax
@@ -7348,7 +7348,7 @@ c0103209:	c7 44 24 04 ff 00 00 	movl   $0xff,0x4(%esp)
 c0103210:	00 
 c0103211:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103218:	e8 dc d1 ff ff       	call   c01003f9 <__panic>
-    size_t n = ROUNDUP(size + PGOFF(la), PGSIZE) / PGSIZE;
+boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, uintptr_t pa, uint32_t perm) {
 c010321d:	c7 45 f0 00 10 00 00 	movl   $0x1000,-0x10(%ebp)
 c0103224:	8b 45 0c             	mov    0xc(%ebp),%eax
 c0103227:	25 ff 0f 00 00       	and    $0xfff,%eax
@@ -7366,21 +7366,21 @@ c0103247:	8b 45 ec             	mov    -0x14(%ebp),%eax
 c010324a:	29 d0                	sub    %edx,%eax
 c010324c:	c1 e8 0c             	shr    $0xc,%eax
 c010324f:	89 45 f4             	mov    %eax,-0xc(%ebp)
-    la = ROUNDDOWN(la, PGSIZE);
+    assert(PGOFF(la) == PGOFF(pa));
 c0103252:	8b 45 0c             	mov    0xc(%ebp),%eax
 c0103255:	89 45 e8             	mov    %eax,-0x18(%ebp)
 c0103258:	8b 45 e8             	mov    -0x18(%ebp),%eax
 c010325b:	25 00 f0 ff ff       	and    $0xfffff000,%eax
 c0103260:	89 45 0c             	mov    %eax,0xc(%ebp)
-    pa = ROUNDDOWN(pa, PGSIZE);
+    size_t n = ROUNDUP(size + PGOFF(la), PGSIZE) / PGSIZE;
 c0103263:	8b 45 14             	mov    0x14(%ebp),%eax
 c0103266:	89 45 e4             	mov    %eax,-0x1c(%ebp)
 c0103269:	8b 45 e4             	mov    -0x1c(%ebp),%eax
 c010326c:	25 00 f0 ff ff       	and    $0xfffff000,%eax
 c0103271:	89 45 14             	mov    %eax,0x14(%ebp)
-    for (; n > 0; n --, la += PGSIZE, pa += PGSIZE) {
+    la = ROUNDDOWN(la, PGSIZE);
 c0103274:	eb 68                	jmp    c01032de <boot_map_segment+0xfa>
-        pte_t *ptep = get_pte(pgdir, la, 1);
+    pa = ROUNDDOWN(pa, PGSIZE);
 c0103276:	c7 44 24 08 01 00 00 	movl   $0x1,0x8(%esp)
 c010327d:	00 
 c010327e:	8b 45 0c             	mov    0xc(%ebp),%eax
@@ -7389,7 +7389,7 @@ c0103285:	8b 45 08             	mov    0x8(%ebp),%eax
 c0103288:	89 04 24             	mov    %eax,(%esp)
 c010328b:	e8 81 01 00 00       	call   c0103411 <get_pte>
 c0103290:	89 45 e0             	mov    %eax,-0x20(%ebp)
-        assert(ptep != NULL);
+    for (; n > 0; n --, la += PGSIZE, pa += PGSIZE) {
 c0103293:	83 7d e0 00          	cmpl   $0x0,-0x20(%ebp)
 c0103297:	75 24                	jne    c01032bd <boot_map_segment+0xd9>
 c0103299:	c7 44 24 0c 62 69 10 	movl   $0xc0106962,0xc(%esp)
@@ -7400,69 +7400,69 @@ c01032a9:	c7 44 24 04 05 01 00 	movl   $0x105,0x4(%esp)
 c01032b0:	00 
 c01032b1:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c01032b8:	e8 3c d1 ff ff       	call   c01003f9 <__panic>
-        *ptep = pa | PTE_P | perm;
+        pte_t *ptep = get_pte(pgdir, la, 1);
 c01032bd:	8b 45 14             	mov    0x14(%ebp),%eax
 c01032c0:	0b 45 18             	or     0x18(%ebp),%eax
 c01032c3:	83 c8 01             	or     $0x1,%eax
 c01032c6:	89 c2                	mov    %eax,%edx
 c01032c8:	8b 45 e0             	mov    -0x20(%ebp),%eax
 c01032cb:	89 10                	mov    %edx,(%eax)
-    for (; n > 0; n --, la += PGSIZE, pa += PGSIZE) {
+    la = ROUNDDOWN(la, PGSIZE);
 c01032cd:	ff 4d f4             	decl   -0xc(%ebp)
 c01032d0:	81 45 0c 00 10 00 00 	addl   $0x1000,0xc(%ebp)
 c01032d7:	81 45 14 00 10 00 00 	addl   $0x1000,0x14(%ebp)
 c01032de:	83 7d f4 00          	cmpl   $0x0,-0xc(%ebp)
 c01032e2:	75 92                	jne    c0103276 <boot_map_segment+0x92>
-    }
-}
+        assert(ptep != NULL);
+        *ptep = pa | PTE_P | perm;
 c01032e4:	90                   	nop
 c01032e5:	c9                   	leave  
 c01032e6:	c3                   	ret    
 
 c01032e7 <boot_alloc_page>:
+    }
+}
 
 //boot_alloc_page - allocate one page using pmm->alloc_pages(1)
 // return value: the kernel virtual address of this allocated page
 //note: this function is used to get the memory for PDT(Page Directory Table)&PT(Page Table)
-static void *
-boot_alloc_page(void) {
 c01032e7:	55                   	push   %ebp
 c01032e8:	89 e5                	mov    %esp,%ebp
 c01032ea:	83 ec 28             	sub    $0x28,%esp
-    struct Page *p = alloc_page();
+static void *
 c01032ed:	c7 04 24 01 00 00 00 	movl   $0x1,(%esp)
 c01032f4:	e8 60 fa ff ff       	call   c0102d59 <alloc_pages>
 c01032f9:	89 45 f4             	mov    %eax,-0xc(%ebp)
-    if (p == NULL) {
+boot_alloc_page(void) {
 c01032fc:	83 7d f4 00          	cmpl   $0x0,-0xc(%ebp)
 c0103300:	75 1c                	jne    c010331e <boot_alloc_page+0x37>
-        panic("boot_alloc_page failed.\n");
+    struct Page *p = alloc_page();
 c0103302:	c7 44 24 08 6f 69 10 	movl   $0xc010696f,0x8(%esp)
 c0103309:	c0 
 c010330a:	c7 44 24 04 11 01 00 	movl   $0x111,0x4(%esp)
 c0103311:	00 
 c0103312:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103319:	e8 db d0 ff ff       	call   c01003f9 <__panic>
-    }
-    return page2kva(p);
+    if (p == NULL) {
+        panic("boot_alloc_page failed.\n");
 c010331e:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c0103321:	89 04 24             	mov    %eax,(%esp)
 c0103324:	e8 81 f7 ff ff       	call   c0102aaa <page2kva>
-}
+    }
 c0103329:	c9                   	leave  
 c010332a:	c3                   	ret    
 
 c010332b <pmm_init>:
+    return page2kva(p);
+}
 
 //pmm_init - setup a pmm to manage physical memory, build PDT&PT to setup paging mechanism
 //         - check the correctness of pmm & paging mechanism, print PDT&PT
-void
-pmm_init(void) {
 c010332b:	55                   	push   %ebp
 c010332c:	89 e5                	mov    %esp,%ebp
 c010332e:	83 ec 38             	sub    $0x38,%esp
-    // We've already enabled paging
-    boot_cr3 = PADDR(boot_pgdir);
+void
+pmm_init(void) {
 c0103331:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c0103336:	89 45 f4             	mov    %eax,-0xc(%ebp)
 c0103339:	81 7d f4 ff ff ff bf 	cmpl   $0xbfffffff,-0xc(%ebp)
@@ -7478,31 +7478,31 @@ c0103360:	e8 94 d0 ff ff       	call   c01003f9 <__panic>
 c0103365:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c0103368:	05 00 00 00 40       	add    $0x40000000,%eax
 c010336d:	a3 14 bf 11 c0       	mov    %eax,0xc011bf14
+    boot_cr3 = PADDR(boot_pgdir);
+
     //We need to alloc/free the physical memory (granularity is 4KB or other size).
     //So a framework of physical memory manager (struct pmm_manager)is defined in pmm.h
     //First we should init a physical memory manager(pmm) based on the framework.
     //Then pmm can alloc/free the physical memory.
+c0103372:	e8 8e f9 ff ff       	call   c0102d05 <init_pmm_manager>
     //Now the first_fit/best_fit/worst_fit/buddy_system pmm are available.
     init_pmm_manager();
-c0103372:	e8 8e f9 ff ff       	call   c0102d05 <init_pmm_manager>
 
     // detect physical memory space, reserve already used memory,
+c0103377:	e8 73 fa ff ff       	call   c0102def <page_init>
     // then use pmm->init_memmap to create free page list
     page_init();
-c0103377:	e8 73 fa ff ff       	call   c0102def <page_init>
 
+c010337c:	e8 e8 03 00 00       	call   c0103769 <check_alloc_page>
     //use pmm->check to verify the correctness of the alloc/free function in a pmm
     check_alloc_page();
-c010337c:	e8 e8 03 00 00       	call   c0103769 <check_alloc_page>
+c0103381:	e8 02 04 00 00       	call   c0103788 <check_pgdir>
 
     check_pgdir();
-c0103381:	e8 02 04 00 00       	call   c0103788 <check_pgdir>
 
     static_assert(KERNBASE % PTSIZE == 0 && KERNTOP % PTSIZE == 0);
 
     // recursively insert boot_pgdir in itself
-    // to form a virtual page table at virtual address VPT
-    boot_pgdir[PDX(VPT)] = PADDR(boot_pgdir) | PTE_P | PTE_W;
 c0103386:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c010338b:	89 45 f0             	mov    %eax,-0x10(%ebp)
 c010338e:	81 7d f0 ff ff ff bf 	cmpl   $0xbfffffff,-0x10(%ebp)
@@ -7521,10 +7521,10 @@ c01033c3:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c01033c8:	05 ac 0f 00 00       	add    $0xfac,%eax
 c01033cd:	83 ca 03             	or     $0x3,%edx
 c01033d0:	89 10                	mov    %edx,(%eax)
+    // to form a virtual page table at virtual address VPT
+    boot_pgdir[PDX(VPT)] = PADDR(boot_pgdir) | PTE_P | PTE_W;
 
     // map all physical memory to linear memory with base linear addr KERNBASE
-    // linear_addr KERNBASE ~ KERNBASE + KMEMSIZE = phy_addr 0 ~ KMEMSIZE
-    boot_map_segment(boot_pgdir, KERNBASE, KMEMSIZE, 0, PTE_W);
 c01033d2:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c01033d7:	c7 44 24 10 02 00 00 	movl   $0x2,0x10(%esp)
 c01033de:	00 
@@ -7536,83 +7536,83 @@ c01033ef:	c7 44 24 04 00 00 00 	movl   $0xc0000000,0x4(%esp)
 c01033f6:	c0 
 c01033f7:	89 04 24             	mov    %eax,(%esp)
 c01033fa:	e8 e5 fd ff ff       	call   c01031e4 <boot_map_segment>
+    // linear_addr KERNBASE ~ KERNBASE + KMEMSIZE = phy_addr 0 ~ KMEMSIZE
+    //将4MB之外的线性地址映射到物理地址
+    boot_map_segment(boot_pgdir, KERNBASE, KMEMSIZE, 0, PTE_W);
 
     // Since we are using bootloader's GDT,
     // we should reload gdt (second time, the last time) to get user segments and the TSS
+c01033ff:	e8 18 f8 ff ff       	call   c0102c1c <gdt_init>
     // map virtual_addr 0 ~ 4G = linear_addr 0 ~ 4G
     // then set kernel stack (ss:esp) in TSS, setup TSS in gdt, load TSS
     gdt_init();
-c01033ff:	e8 18 f8 ff ff       	call   c0102c1c <gdt_init>
 
+c0103404:	e8 1b 0a 00 00       	call   c0103e24 <check_boot_pgdir>
     //now the basic virtual memory map(see memalyout.h) is established.
     //check the correctness of the basic virtual memory map.
-    check_boot_pgdir();
-c0103404:	e8 1b 0a 00 00       	call   c0103e24 <check_boot_pgdir>
-
-    print_pgdir();
 c0103409:	e8 94 0e 00 00       	call   c01042a2 <print_pgdir>
+    check_boot_pgdir();
 
-}
 c010340e:	90                   	nop
 c010340f:	c9                   	leave  
 c0103410:	c3                   	ret    
 
 c0103411 <get_pte>:
+//get_pte - get pte and return the kernel virtual address of this pte for la
+//        - if the PT contians this pte didn't exist, alloc a page for PT
+// parameter:
 //  pgdir:  the kernel virtual base address of PDT
 //  la:     the linear address need to map
 //  create: a logical value to decide if alloc a page for PT
-// return vaule: the kernel virtual address of this pte
-pte_t *
-get_pte(pde_t *pgdir, uintptr_t la, bool create) {
 c0103411:	55                   	push   %ebp
 c0103412:	89 e5                	mov    %esp,%ebp
 c0103414:	83 ec 38             	sub    $0x38,%esp
+     *   memset(void *s, char c, size_t n) : sets the first n bytes of the memory area pointed by s
+     *                                       to the specified value c.
+     * DEFINEs:
      *   PTE_P           0x001                   // page table/directory entry flags bit : Present
      *   PTE_W           0x002                   // page table/directory entry flags bit : Writeable
      *   PTE_U           0x004                   // page table/directory entry flags bit : User can access
-     */
-#if 1
-    pde_t *pdep = &pgdir[PDX(la)];   // (1) find page directory entry   通过参数中的pgdir加上页表目录偏移量（数组方式）获取页表目录地址
 c0103417:	8b 45 0c             	mov    0xc(%ebp),%eax
 c010341a:	c1 e8 16             	shr    $0x16,%eax
 c010341d:	8d 14 85 00 00 00 00 	lea    0x0(,%eax,4),%edx
 c0103424:	8b 45 08             	mov    0x8(%ebp),%eax
 c0103427:	01 d0                	add    %edx,%eax
 c0103429:	89 45 f4             	mov    %eax,-0xc(%ebp)
-    if (!(*pdep&PTE_P)) {              // (2) check if entry is not present
+     */
 c010342c:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c010342f:	8b 00                	mov    (%eax),%eax
 c0103431:	83 e0 01             	and    $0x1,%eax
 c0103434:	85 c0                	test   %eax,%eax
 c0103436:	0f 85 b9 00 00 00    	jne    c01034f5 <get_pte+0xe4>
-    struct Page*page;
-    if(!create)  return NULL;                // (3) check if creating is needed, then alloc page for page table 不需要分配，直接返回NULL
+#if 1
+    pde_t *pdep = &pgdir[PDX(la)];   // (1) find page directory entry   通过参数中的pgdir加上页表目录偏移量（数组方式）获取页表目录地址
 c010343c:	83 7d 10 00          	cmpl   $0x0,0x10(%ebp)
 c0103440:	75 0a                	jne    c010344c <get_pte+0x3b>
 c0103442:	b8 00 00 00 00       	mov    $0x0,%eax
 c0103447:	e9 06 01 00 00       	jmp    c0103552 <get_pte+0x141>
-    page = alloc_page();
+    if (!(*pdep&PTE_P)) {              // (2) check if entry is not present
 c010344c:	c7 04 24 01 00 00 00 	movl   $0x1,(%esp)
 c0103453:	e8 01 f9 ff ff       	call   c0102d59 <alloc_pages>
 c0103458:	89 45 f0             	mov    %eax,-0x10(%ebp)
-    if(page==NULL)   return NULL; //没有找到能够分配的页
+    struct Page*page;
 c010345b:	83 7d f0 00          	cmpl   $0x0,-0x10(%ebp)
 c010345f:	75 0a                	jne    c010346b <get_pte+0x5a>
 c0103461:	b8 00 00 00 00       	mov    $0x0,%eax
 c0103466:	e9 e7 00 00 00       	jmp    c0103552 <get_pte+0x141>
-                                                          // CAUTION: this page is used for page table, not for common data page
-    set_page_ref(page,1);     // (4) set page reference
+    if(!create)  return NULL;                // (3) check if creating is needed, then alloc page for page table 不需要分配，直接返回NULL
+    page = alloc_page();
 c010346b:	c7 44 24 04 01 00 00 	movl   $0x1,0x4(%esp)
 c0103472:	00 
 c0103473:	8b 45 f0             	mov    -0x10(%ebp),%eax
 c0103476:	89 04 24             	mov    %eax,(%esp)
 c0103479:	e8 e0 f6 ff ff       	call   c0102b5e <set_page_ref>
-    uintptr_t pa =page2pa(page); // (5) get linear address of page
+    if(page==NULL)   return NULL; //没有找到能够分配的页
 c010347e:	8b 45 f0             	mov    -0x10(%ebp),%eax
 c0103481:	89 04 24             	mov    %eax,(%esp)
 c0103484:	e8 bc f5 ff ff       	call   c0102a45 <page2pa>
 c0103489:	89 45 ec             	mov    %eax,-0x14(%ebp)
-    memset(KADDR(pa),0,PGSIZE);             // (6) clear page content using memset
+                                                          // CAUTION: this page is used for page table, not for common data page
 c010348c:	8b 45 ec             	mov    -0x14(%ebp),%eax
 c010348f:	89 45 e8             	mov    %eax,-0x18(%ebp)
 c0103492:	8b 45 e8             	mov    -0x18(%ebp),%eax
@@ -7637,14 +7637,14 @@ c01034d8:	c7 44 24 04 00 00 00 	movl   $0x0,0x4(%esp)
 c01034df:	00 
 c01034e0:	89 04 24             	mov    %eax,(%esp)
 c01034e3:	e8 18 24 00 00       	call   c0105900 <memset>
-    *pdep =pa|PTE_W|PTE_P|PTE_U;                      // (7) set page directory entry's permission  设置和物理地址，可写，用户可访问，可用位
+    set_page_ref(page,1);     // (4) set page reference
 c01034e8:	8b 45 ec             	mov    -0x14(%ebp),%eax
 c01034eb:	83 c8 07             	or     $0x7,%eax
 c01034ee:	89 c2                	mov    %eax,%edx
 c01034f0:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c01034f3:	89 10                	mov    %edx,(%eax)
-    }
-    return &((pte_t*)KADDR(PDE_ADDR(*pdep)))[PTX(la)];          // (8) return page table entry  拼接页表项、页表目录、表内偏移，得到物理地址之后转为虚拟地址返回
+    uintptr_t pa =page2pa(page); // (5) get linear address of page
+    memset(KADDR(pa),0,PGSIZE);             // (6) clear page content using memset
 c01034f5:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c01034f8:	8b 00                	mov    (%eax),%eax
 c01034fa:	25 00 f0 ff ff       	and    $0xfffff000,%eax
@@ -7671,20 +7671,20 @@ c0103545:	c1 e8 0c             	shr    $0xc,%eax
 c0103548:	25 ff 03 00 00       	and    $0x3ff,%eax
 c010354d:	c1 e0 02             	shl    $0x2,%eax
 c0103550:	01 d0                	add    %edx,%eax
-#endif
-}
+    *pdep =pa|PTE_W|PTE_P|PTE_U;                      // (7) set page directory entry's permission  设置和物理地址，可写，用户可访问，可用位
+    }
 c0103552:	c9                   	leave  
 c0103553:	c3                   	ret    
 
 c0103554 <get_page>:
+    return &((pte_t*)KADDR(PDE_ADDR(*pdep)))[PTX(la)];          // (8) return page table entry  拼接页表项、页表目录、表内偏移，得到物理地址之后转为虚拟地址返回
+#endif
+}
 
-//get_page - get related Page struct for linear address la using PDT pgdir
-struct Page *
-get_page(pde_t *pgdir, uintptr_t la, pte_t **ptep_store) {
 c0103554:	55                   	push   %ebp
 c0103555:	89 e5                	mov    %esp,%ebp
 c0103557:	83 ec 28             	sub    $0x28,%esp
-    pte_t *ptep = get_pte(pgdir, la, 0);
+//get_page - get related Page struct for linear address la using PDT pgdir
 c010355a:	c7 44 24 08 00 00 00 	movl   $0x0,0x8(%esp)
 c0103561:	00 
 c0103562:	8b 45 0c             	mov    0xc(%ebp),%eax
@@ -7693,15 +7693,15 @@ c0103569:	8b 45 08             	mov    0x8(%ebp),%eax
 c010356c:	89 04 24             	mov    %eax,(%esp)
 c010356f:	e8 9d fe ff ff       	call   c0103411 <get_pte>
 c0103574:	89 45 f4             	mov    %eax,-0xc(%ebp)
-    if (ptep_store != NULL) {
+struct Page *
 c0103577:	83 7d 10 00          	cmpl   $0x0,0x10(%ebp)
 c010357b:	74 08                	je     c0103585 <get_page+0x31>
-        *ptep_store = ptep;
+get_page(pde_t *pgdir, uintptr_t la, pte_t **ptep_store) {
 c010357d:	8b 45 10             	mov    0x10(%ebp),%eax
 c0103580:	8b 55 f4             	mov    -0xc(%ebp),%edx
 c0103583:	89 10                	mov    %edx,(%eax)
-    }
-    if (ptep != NULL && *ptep & PTE_P) {
+    pte_t *ptep = get_pte(pgdir, la, 0);
+    if (ptep_store != NULL) {
 c0103585:	83 7d f4 00          	cmpl   $0x0,-0xc(%ebp)
 c0103589:	74 1b                	je     c01035a6 <get_page+0x52>
 c010358b:	8b 45 f4             	mov    -0xc(%ebp),%eax
@@ -7709,84 +7709,84 @@ c010358e:	8b 00                	mov    (%eax),%eax
 c0103590:	83 e0 01             	and    $0x1,%eax
 c0103593:	85 c0                	test   %eax,%eax
 c0103595:	74 0f                	je     c01035a6 <get_page+0x52>
-        return pte2page(*ptep);
+        *ptep_store = ptep;
 c0103597:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c010359a:	8b 00                	mov    (%eax),%eax
 c010359c:	89 04 24             	mov    %eax,(%esp)
 c010359f:	e8 5a f5 ff ff       	call   c0102afe <pte2page>
 c01035a4:	eb 05                	jmp    c01035ab <get_page+0x57>
     }
-    return NULL;
+    if (ptep != NULL && *ptep & PTE_P) {
 c01035a6:	b8 00 00 00 00       	mov    $0x0,%eax
-}
+        return pte2page(*ptep);
 c01035ab:	c9                   	leave  
 c01035ac:	c3                   	ret    
 
 c01035ad <page_remove_pte>:
+    }
+    return NULL;
+}
 
 //page_remove_pte - free an Page sturct which is related linear address la
 //                - and clean(invalidate) pte which is related linear address la
-//note: PT is changed, so the TLB need to be invalidate
-static inline void
-page_remove_pte(pde_t *pgdir, uintptr_t la, pte_t *ptep) {
 c01035ad:	55                   	push   %ebp
 c01035ae:	89 e5                	mov    %esp,%ebp
 c01035b0:	83 ec 28             	sub    $0x28,%esp
+     *   free_page : free a page
+     *   page_ref_dec(page) : decrease page->ref. NOTICE: ff page->ref == 0 , then this page should be free.
+     *   tlb_invalidate(pde_t *pgdir, uintptr_t la) : Invalidate a TLB entry, but only if the page tables being
      *                        edited are the ones currently in use by the processor.
      * DEFINEs:
      *   PTE_P           0x001                   // page table/directory entry flags bit : Present
-     */
-#if 1
-    if (*ptep&PTE_P) {                      //(1) check if this page table entry is present   ?
 c01035b3:	8b 45 10             	mov    0x10(%ebp),%eax
 c01035b6:	8b 00                	mov    (%eax),%eax
 c01035b8:	83 e0 01             	and    $0x1,%eax
 c01035bb:	85 c0                	test   %eax,%eax
 c01035bd:	74 4d                	je     c010360c <page_remove_pte+0x5f>
-        struct Page *page =pte2page(*ptep); //(2) find corresponding page to pte
+     */
 c01035bf:	8b 45 10             	mov    0x10(%ebp),%eax
 c01035c2:	8b 00                	mov    (%eax),%eax
 c01035c4:	89 04 24             	mov    %eax,(%esp)
 c01035c7:	e8 32 f5 ff ff       	call   c0102afe <pte2page>
 c01035cc:	89 45 f4             	mov    %eax,-0xc(%ebp)
-        if(page_ref_dec(page)==0){                          //(3) decrease page reference
+#if 1
 c01035cf:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c01035d2:	89 04 24             	mov    %eax,(%esp)
 c01035d5:	e8 a9 f5 ff ff       	call   c0102b83 <page_ref_dec>
 c01035da:	85 c0                	test   %eax,%eax
 c01035dc:	75 13                	jne    c01035f1 <page_remove_pte+0x44>
-            free_page(page);  //(4) and free this page when page reference reachs 0
+    if (*ptep&PTE_P) {                      //(1) check if this page table entry is present   ?
 c01035de:	c7 44 24 04 01 00 00 	movl   $0x1,0x4(%esp)
 c01035e5:	00 
 c01035e6:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c01035e9:	89 04 24             	mov    %eax,(%esp)
 c01035ec:	e8 a0 f7 ff ff       	call   c0102d91 <free_pages>
-        }
-        *ptep = 0;                          //(5) clear second page table entry
+        struct Page *page =pte2page(*ptep); //(2) find corresponding page to pte
+        if(page_ref_dec(page)==0){                          //(3) decrease page reference
 c01035f1:	8b 45 10             	mov    0x10(%ebp),%eax
 c01035f4:	c7 00 00 00 00 00    	movl   $0x0,(%eax)
-        tlb_invalidate(pgdir,la);                          //(6) flush tlb
+            free_page(page);  //(4) and free this page when page reference reachs 0
 c01035fa:	8b 45 0c             	mov    0xc(%ebp),%eax
 c01035fd:	89 44 24 04          	mov    %eax,0x4(%esp)
 c0103601:	8b 45 08             	mov    0x8(%ebp),%eax
 c0103604:	89 04 24             	mov    %eax,(%esp)
 c0103607:	e8 01 01 00 00       	call   c010370d <tlb_invalidate>
-    }
-#endif
-}
+        }
+        *ptep = 0;                          //(5) clear second page table entry
+        tlb_invalidate(pgdir,la);                          //(6) flush tlb
 c010360c:	90                   	nop
 c010360d:	c9                   	leave  
 c010360e:	c3                   	ret    
 
 c010360f <page_remove>:
+    }
+#endif
+}
 
-//page_remove - free an Page which is related linear address la and has an validated pte
-void
-page_remove(pde_t *pgdir, uintptr_t la) {
 c010360f:	55                   	push   %ebp
 c0103610:	89 e5                	mov    %esp,%ebp
 c0103612:	83 ec 28             	sub    $0x28,%esp
-    pte_t *ptep = get_pte(pgdir, la, 0);
+//page_remove - free an Page which is related linear address la and has an validated pte
 c0103615:	c7 44 24 08 00 00 00 	movl   $0x0,0x8(%esp)
 c010361c:	00 
 c010361d:	8b 45 0c             	mov    0xc(%ebp),%eax
@@ -7795,10 +7795,10 @@ c0103624:	8b 45 08             	mov    0x8(%ebp),%eax
 c0103627:	89 04 24             	mov    %eax,(%esp)
 c010362a:	e8 e2 fd ff ff       	call   c0103411 <get_pte>
 c010362f:	89 45 f4             	mov    %eax,-0xc(%ebp)
-    if (ptep != NULL) {
+void
 c0103632:	83 7d f4 00          	cmpl   $0x0,-0xc(%ebp)
 c0103636:	74 19                	je     c0103651 <page_remove+0x42>
-        page_remove_pte(pgdir, la, ptep);
+page_remove(pde_t *pgdir, uintptr_t la) {
 c0103638:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c010363b:	89 44 24 08          	mov    %eax,0x8(%esp)
 c010363f:	8b 45 0c             	mov    0xc(%ebp),%eax
@@ -7806,23 +7806,23 @@ c0103642:	89 44 24 04          	mov    %eax,0x4(%esp)
 c0103646:	8b 45 08             	mov    0x8(%ebp),%eax
 c0103649:	89 04 24             	mov    %eax,(%esp)
 c010364c:	e8 5c ff ff ff       	call   c01035ad <page_remove_pte>
-    }
-}
+    pte_t *ptep = get_pte(pgdir, la, 0);
+    if (ptep != NULL) {
 c0103651:	90                   	nop
 c0103652:	c9                   	leave  
 c0103653:	c3                   	ret    
 
 c0103654 <page_insert>:
+// paramemters:
+//  pgdir: the kernel virtual base address of PDT
+//  page:  the Page which need to map
 //  la:    the linear address need to map
 //  perm:  the permission of this Page which is setted in related pte
 // return value: always 0
-//note: PT is changed, so the TLB need to be invalidate
-int
-page_insert(pde_t *pgdir, struct Page *page, uintptr_t la, uint32_t perm) {
 c0103654:	55                   	push   %ebp
 c0103655:	89 e5                	mov    %esp,%ebp
 c0103657:	83 ec 28             	sub    $0x28,%esp
-    pte_t *ptep = get_pte(pgdir, la, 1);
+//note: PT is changed, so the TLB need to be invalidate
 c010365a:	c7 44 24 08 01 00 00 	movl   $0x1,0x8(%esp)
 c0103661:	00 
 c0103662:	8b 45 10             	mov    0x10(%ebp),%eax
@@ -7831,41 +7831,41 @@ c0103669:	8b 45 08             	mov    0x8(%ebp),%eax
 c010366c:	89 04 24             	mov    %eax,(%esp)
 c010366f:	e8 9d fd ff ff       	call   c0103411 <get_pte>
 c0103674:	89 45 f4             	mov    %eax,-0xc(%ebp)
-    if (ptep == NULL) {
+int
 c0103677:	83 7d f4 00          	cmpl   $0x0,-0xc(%ebp)
 c010367b:	75 0a                	jne    c0103687 <page_insert+0x33>
-        return -E_NO_MEM;
+page_insert(pde_t *pgdir, struct Page *page, uintptr_t la, uint32_t perm) {
 c010367d:	b8 fc ff ff ff       	mov    $0xfffffffc,%eax
 c0103682:	e9 84 00 00 00       	jmp    c010370b <page_insert+0xb7>
-    }
-    page_ref_inc(page);
+    pte_t *ptep = get_pte(pgdir, la, 1);
+    if (ptep == NULL) {
 c0103687:	8b 45 0c             	mov    0xc(%ebp),%eax
 c010368a:	89 04 24             	mov    %eax,(%esp)
 c010368d:	e8 da f4 ff ff       	call   c0102b6c <page_ref_inc>
-    if (*ptep & PTE_P) {
+        return -E_NO_MEM;
 c0103692:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c0103695:	8b 00                	mov    (%eax),%eax
 c0103697:	83 e0 01             	and    $0x1,%eax
 c010369a:	85 c0                	test   %eax,%eax
 c010369c:	74 3e                	je     c01036dc <page_insert+0x88>
-        struct Page *p = pte2page(*ptep);
+    }
 c010369e:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c01036a1:	8b 00                	mov    (%eax),%eax
 c01036a3:	89 04 24             	mov    %eax,(%esp)
 c01036a6:	e8 53 f4 ff ff       	call   c0102afe <pte2page>
 c01036ab:	89 45 f0             	mov    %eax,-0x10(%ebp)
-        if (p == page) {
+    page_ref_inc(page);
 c01036ae:	8b 45 f0             	mov    -0x10(%ebp),%eax
 c01036b1:	3b 45 0c             	cmp    0xc(%ebp),%eax
 c01036b4:	75 0d                	jne    c01036c3 <page_insert+0x6f>
-            page_ref_dec(page);
+    if (*ptep & PTE_P) {
 c01036b6:	8b 45 0c             	mov    0xc(%ebp),%eax
 c01036b9:	89 04 24             	mov    %eax,(%esp)
 c01036bc:	e8 c2 f4 ff ff       	call   c0102b83 <page_ref_dec>
 c01036c1:	eb 19                	jmp    c01036dc <page_insert+0x88>
-        }
-        else {
-            page_remove_pte(pgdir, la, ptep);
+        struct Page *p = pte2page(*ptep);
+        if (p == page) {
+            page_ref_dec(page);
 c01036c3:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c01036c6:	89 44 24 08          	mov    %eax,0x8(%esp)
 c01036ca:	8b 45 10             	mov    0x10(%ebp),%eax
@@ -7874,8 +7874,8 @@ c01036d1:	8b 45 08             	mov    0x8(%ebp),%eax
 c01036d4:	89 04 24             	mov    %eax,(%esp)
 c01036d7:	e8 d1 fe ff ff       	call   c01035ad <page_remove_pte>
         }
-    }
-    *ptep = page2pa(page) | PTE_P | perm;
+        else {
+            page_remove_pte(pgdir, la, ptep);
 c01036dc:	8b 45 0c             	mov    0xc(%ebp),%eax
 c01036df:	89 04 24             	mov    %eax,(%esp)
 c01036e2:	e8 5e f3 ff ff       	call   c0102a45 <page2pa>
@@ -7884,24 +7884,24 @@ c01036ea:	83 c8 01             	or     $0x1,%eax
 c01036ed:	89 c2                	mov    %eax,%edx
 c01036ef:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c01036f2:	89 10                	mov    %edx,(%eax)
-    tlb_invalidate(pgdir, la);
+        }
 c01036f4:	8b 45 10             	mov    0x10(%ebp),%eax
 c01036f7:	89 44 24 04          	mov    %eax,0x4(%esp)
 c01036fb:	8b 45 08             	mov    0x8(%ebp),%eax
 c01036fe:	89 04 24             	mov    %eax,(%esp)
 c0103701:	e8 07 00 00 00       	call   c010370d <tlb_invalidate>
-    return 0;
+    }
 c0103706:	b8 00 00 00 00       	mov    $0x0,%eax
-}
+    *ptep = page2pa(page) | PTE_P | perm;
 c010370b:	c9                   	leave  
 c010370c:	c3                   	ret    
 
 c010370d <tlb_invalidate>:
+    tlb_invalidate(pgdir, la);
+    return 0;
+}
 
 // invalidate a TLB entry, but only if the page tables being
-// edited are the ones currently in use by the processor.
-void
-tlb_invalidate(pde_t *pgdir, uintptr_t la) {
 c010370d:	55                   	push   %ebp
 c010370e:	89 e5                	mov    %esp,%ebp
 c0103710:	83 ec 28             	sub    $0x28,%esp
@@ -7915,7 +7915,7 @@ c0103713:	0f 20 d8             	mov    %cr3,%eax
 c0103716:	89 45 f0             	mov    %eax,-0x10(%ebp)
     return cr3;
 c0103719:	8b 55 f0             	mov    -0x10(%ebp),%edx
-    if (rcr3() == PADDR(pgdir)) {
+// edited are the ones currently in use by the processor.
 c010371c:	8b 45 08             	mov    0x8(%ebp),%eax
 c010371f:	89 45 f4             	mov    %eax,-0xc(%ebp)
 c0103722:	81 7d f4 ff ff ff bf 	cmpl   $0xbfffffff,-0xc(%ebp)
@@ -7932,7 +7932,7 @@ c010374e:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c0103751:	05 00 00 00 40       	add    $0x40000000,%eax
 c0103756:	39 d0                	cmp    %edx,%eax
 c0103758:	75 0c                	jne    c0103766 <tlb_invalidate+0x59>
-        invlpg((void *)la);
+void
 c010375a:	8b 45 0c             	mov    0xc(%ebp),%eax
 c010375d:	89 45 ec             	mov    %eax,-0x14(%ebp)
 }
@@ -7942,39 +7942,39 @@ invlpg(void *addr) {
     asm volatile ("invlpg (%0)" :: "r" (addr) : "memory");
 c0103760:	8b 45 ec             	mov    -0x14(%ebp),%eax
 c0103763:	0f 01 38             	invlpg (%eax)
-    }
-}
+tlb_invalidate(pde_t *pgdir, uintptr_t la) {
+    if (rcr3() == PADDR(pgdir)) {
 c0103766:	90                   	nop
 c0103767:	c9                   	leave  
 c0103768:	c3                   	ret    
 
 c0103769 <check_alloc_page>:
-
-static void
-check_alloc_page(void) {
+        invlpg((void *)la);
+    }
+}
 c0103769:	55                   	push   %ebp
 c010376a:	89 e5                	mov    %esp,%ebp
 c010376c:	83 ec 18             	sub    $0x18,%esp
-    pmm_manager->check();
+
 c010376f:	a1 10 bf 11 c0       	mov    0xc011bf10,%eax
 c0103774:	8b 40 18             	mov    0x18(%eax),%eax
 c0103777:	ff d0                	call   *%eax
-    cprintf("check_alloc_page() succeeded!\n");
+static void
 c0103779:	c7 04 24 88 69 10 c0 	movl   $0xc0106988,(%esp)
 c0103780:	e8 1d cb ff ff       	call   c01002a2 <cprintf>
-}
+check_alloc_page(void) {
 c0103785:	90                   	nop
 c0103786:	c9                   	leave  
 c0103787:	c3                   	ret    
 
 c0103788 <check_pgdir>:
-
-static void
-check_pgdir(void) {
+    pmm_manager->check();
+    cprintf("check_alloc_page() succeeded!\n");
+}
 c0103788:	55                   	push   %ebp
 c0103789:	89 e5                	mov    %esp,%ebp
 c010378b:	83 ec 38             	sub    $0x38,%esp
-    assert(npage <= KMEMSIZE / PGSIZE);
+
 c010378e:	a1 80 be 11 c0       	mov    0xc011be80,%eax
 c0103793:	3d 00 80 03 00       	cmp    $0x38000,%eax
 c0103798:	76 24                	jbe    c01037be <check_pgdir+0x36>
@@ -7986,7 +7986,7 @@ c01037aa:	c7 44 24 04 d9 01 00 	movl   $0x1d9,0x4(%esp)
 c01037b1:	00 
 c01037b2:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c01037b9:	e8 3b cc ff ff       	call   c01003f9 <__panic>
-    assert(boot_pgdir != NULL && (uint32_t)PGOFF(boot_pgdir) == 0);
+static void
 c01037be:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c01037c3:	85 c0                	test   %eax,%eax
 c01037c5:	74 0e                	je     c01037d5 <check_pgdir+0x4d>
@@ -8002,7 +8002,7 @@ c01037e5:	c7 44 24 04 da 01 00 	movl   $0x1da,0x4(%esp)
 c01037ec:	00 
 c01037ed:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c01037f4:	e8 00 cc ff ff       	call   c01003f9 <__panic>
-    assert(get_page(boot_pgdir, 0x0, NULL) == NULL);
+check_pgdir(void) {
 c01037f9:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c01037fe:	c7 44 24 08 00 00 00 	movl   $0x0,0x8(%esp)
 c0103805:	00 
@@ -8020,13 +8020,13 @@ c010382a:	c7 44 24 04 db 01 00 	movl   $0x1db,0x4(%esp)
 c0103831:	00 
 c0103832:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103839:	e8 bb cb ff ff       	call   c01003f9 <__panic>
-
-    struct Page *p1, *p2;
-    p1 = alloc_page();
+    assert(npage <= KMEMSIZE / PGSIZE);
+    assert(boot_pgdir != NULL && (uint32_t)PGOFF(boot_pgdir) == 0);
+    assert(get_page(boot_pgdir, 0x0, NULL) == NULL);
 c010383e:	c7 04 24 01 00 00 00 	movl   $0x1,(%esp)
 c0103845:	e8 0f f5 ff ff       	call   c0102d59 <alloc_pages>
 c010384a:	89 45 f4             	mov    %eax,-0xc(%ebp)
-    assert(page_insert(boot_pgdir, p1, 0x0, 0) == 0);
+
 c010384d:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c0103852:	c7 44 24 0c 00 00 00 	movl   $0x0,0xc(%esp)
 c0103859:	00 
@@ -8046,9 +8046,9 @@ c0103885:	c7 44 24 04 df 01 00 	movl   $0x1df,0x4(%esp)
 c010388c:	00 
 c010388d:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103894:	e8 60 cb ff ff       	call   c01003f9 <__panic>
-
-    pte_t *ptep;
-    assert((ptep = get_pte(boot_pgdir, 0x0, 0)) != NULL);
+    struct Page *p1, *p2;
+    p1 = alloc_page();
+    assert(page_insert(boot_pgdir, p1, 0x0, 0) == 0);
 c0103899:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c010389e:	c7 44 24 08 00 00 00 	movl   $0x0,0x8(%esp)
 c01038a5:	00 
@@ -8067,7 +8067,7 @@ c01038cf:	c7 44 24 04 e2 01 00 	movl   $0x1e2,0x4(%esp)
 c01038d6:	00 
 c01038d7:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c01038de:	e8 16 cb ff ff       	call   c01003f9 <__panic>
-    assert(pte2page(*ptep) == p1);
+
 c01038e3:	8b 45 f0             	mov    -0x10(%ebp),%eax
 c01038e6:	8b 00                	mov    (%eax),%eax
 c01038e8:	89 04 24             	mov    %eax,(%esp)
@@ -8082,7 +8082,7 @@ c0103905:	c7 44 24 04 e3 01 00 	movl   $0x1e3,0x4(%esp)
 c010390c:	00 
 c010390d:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103914:	e8 e0 ca ff ff       	call   c01003f9 <__panic>
-    assert(page_ref(p1) == 1);
+    pte_t *ptep;
 c0103919:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c010391c:	89 04 24             	mov    %eax,(%esp)
 c010391f:	e8 30 f2 ff ff       	call   c0102b54 <page_ref>
@@ -8096,8 +8096,8 @@ c0103939:	c7 44 24 04 e4 01 00 	movl   $0x1e4,0x4(%esp)
 c0103940:	00 
 c0103941:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103948:	e8 ac ca ff ff       	call   c01003f9 <__panic>
-
-    ptep = &((pte_t *)KADDR(PDE_ADDR(boot_pgdir[0])))[1];
+    assert((ptep = get_pte(boot_pgdir, 0x0, 0)) != NULL);
+    assert(pte2page(*ptep) == p1);
 c010394d:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c0103952:	8b 00                	mov    (%eax),%eax
 c0103954:	25 00 f0 ff ff       	and    $0xfffff000,%eax
@@ -8120,7 +8120,7 @@ c0103992:	8b 45 ec             	mov    -0x14(%ebp),%eax
 c0103995:	2d 00 00 00 40       	sub    $0x40000000,%eax
 c010399a:	83 c0 04             	add    $0x4,%eax
 c010399d:	89 45 f0             	mov    %eax,-0x10(%ebp)
-    assert(get_pte(boot_pgdir, PGSIZE, 0) == ptep);
+    assert(page_ref(p1) == 1);
 c01039a0:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c01039a5:	c7 44 24 08 00 00 00 	movl   $0x0,0x8(%esp)
 c01039ac:	00 
@@ -8139,11 +8139,11 @@ c01039d9:	00
 c01039da:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c01039e1:	e8 13 ca ff ff       	call   c01003f9 <__panic>
 
-    p2 = alloc_page();
+    ptep = &((pte_t *)KADDR(PDE_ADDR(boot_pgdir[0])))[1];
 c01039e6:	c7 04 24 01 00 00 00 	movl   $0x1,(%esp)
 c01039ed:	e8 67 f3 ff ff       	call   c0102d59 <alloc_pages>
 c01039f2:	89 45 e4             	mov    %eax,-0x1c(%ebp)
-    assert(page_insert(boot_pgdir, p2, PGSIZE, PTE_U | PTE_W) == 0);
+    assert(get_pte(boot_pgdir, PGSIZE, 0) == ptep);
 c01039f5:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c01039fa:	c7 44 24 0c 06 00 00 	movl   $0x6,0xc(%esp)
 c0103a01:	00 
@@ -8163,7 +8163,7 @@ c0103a2d:	c7 44 24 04 ea 01 00 	movl   $0x1ea,0x4(%esp)
 c0103a34:	00 
 c0103a35:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103a3c:	e8 b8 c9 ff ff       	call   c01003f9 <__panic>
-    assert((ptep = get_pte(boot_pgdir, PGSIZE, 0)) != NULL);
+
 c0103a41:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c0103a46:	c7 44 24 08 00 00 00 	movl   $0x0,0x8(%esp)
 c0103a4d:	00 
@@ -8182,7 +8182,7 @@ c0103a77:	c7 44 24 04 eb 01 00 	movl   $0x1eb,0x4(%esp)
 c0103a7e:	00 
 c0103a7f:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103a86:	e8 6e c9 ff ff       	call   c01003f9 <__panic>
-    assert(*ptep & PTE_U);
+    p2 = alloc_page();
 c0103a8b:	8b 45 f0             	mov    -0x10(%ebp),%eax
 c0103a8e:	8b 00                	mov    (%eax),%eax
 c0103a90:	83 e0 04             	and    $0x4,%eax
@@ -8196,7 +8196,7 @@ c0103aa7:	c7 44 24 04 ec 01 00 	movl   $0x1ec,0x4(%esp)
 c0103aae:	00 
 c0103aaf:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103ab6:	e8 3e c9 ff ff       	call   c01003f9 <__panic>
-    assert(*ptep & PTE_W);
+    assert(page_insert(boot_pgdir, p2, PGSIZE, PTE_U | PTE_W) == 0);
 c0103abb:	8b 45 f0             	mov    -0x10(%ebp),%eax
 c0103abe:	8b 00                	mov    (%eax),%eax
 c0103ac0:	83 e0 02             	and    $0x2,%eax
@@ -8210,7 +8210,7 @@ c0103ad7:	c7 44 24 04 ed 01 00 	movl   $0x1ed,0x4(%esp)
 c0103ade:	00 
 c0103adf:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103ae6:	e8 0e c9 ff ff       	call   c01003f9 <__panic>
-    assert(boot_pgdir[0] & PTE_U);
+    assert((ptep = get_pte(boot_pgdir, PGSIZE, 0)) != NULL);
 c0103aeb:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c0103af0:	8b 00                	mov    (%eax),%eax
 c0103af2:	83 e0 04             	and    $0x4,%eax
@@ -8224,7 +8224,7 @@ c0103b09:	c7 44 24 04 ee 01 00 	movl   $0x1ee,0x4(%esp)
 c0103b10:	00 
 c0103b11:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103b18:	e8 dc c8 ff ff       	call   c01003f9 <__panic>
-    assert(page_ref(p2) == 1);
+    assert(*ptep & PTE_U);
 c0103b1d:	8b 45 e4             	mov    -0x1c(%ebp),%eax
 c0103b20:	89 04 24             	mov    %eax,(%esp)
 c0103b23:	e8 2c f0 ff ff       	call   c0102b54 <page_ref>
@@ -8238,8 +8238,8 @@ c0103b3d:	c7 44 24 04 ef 01 00 	movl   $0x1ef,0x4(%esp)
 c0103b44:	00 
 c0103b45:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103b4c:	e8 a8 c8 ff ff       	call   c01003f9 <__panic>
-
-    assert(page_insert(boot_pgdir, p1, PGSIZE, 0) == 0);
+    assert(*ptep & PTE_W);
+    assert(boot_pgdir[0] & PTE_U);
 c0103b51:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c0103b56:	c7 44 24 0c 00 00 00 	movl   $0x0,0xc(%esp)
 c0103b5d:	00 
@@ -8259,7 +8259,7 @@ c0103b89:	c7 44 24 04 f1 01 00 	movl   $0x1f1,0x4(%esp)
 c0103b90:	00 
 c0103b91:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103b98:	e8 5c c8 ff ff       	call   c01003f9 <__panic>
-    assert(page_ref(p1) == 2);
+    assert(page_ref(p2) == 1);
 c0103b9d:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c0103ba0:	89 04 24             	mov    %eax,(%esp)
 c0103ba3:	e8 ac ef ff ff       	call   c0102b54 <page_ref>
@@ -8273,7 +8273,7 @@ c0103bbd:	c7 44 24 04 f2 01 00 	movl   $0x1f2,0x4(%esp)
 c0103bc4:	00 
 c0103bc5:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103bcc:	e8 28 c8 ff ff       	call   c01003f9 <__panic>
-    assert(page_ref(p2) == 0);
+
 c0103bd1:	8b 45 e4             	mov    -0x1c(%ebp),%eax
 c0103bd4:	89 04 24             	mov    %eax,(%esp)
 c0103bd7:	e8 78 ef ff ff       	call   c0102b54 <page_ref>
@@ -8287,7 +8287,7 @@ c0103bf0:	c7 44 24 04 f3 01 00 	movl   $0x1f3,0x4(%esp)
 c0103bf7:	00 
 c0103bf8:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103bff:	e8 f5 c7 ff ff       	call   c01003f9 <__panic>
-    assert((ptep = get_pte(boot_pgdir, PGSIZE, 0)) != NULL);
+    assert(page_insert(boot_pgdir, p1, PGSIZE, 0) == 0);
 c0103c04:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c0103c09:	c7 44 24 08 00 00 00 	movl   $0x0,0x8(%esp)
 c0103c10:	00 
@@ -8306,7 +8306,7 @@ c0103c3a:	c7 44 24 04 f4 01 00 	movl   $0x1f4,0x4(%esp)
 c0103c41:	00 
 c0103c42:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103c49:	e8 ab c7 ff ff       	call   c01003f9 <__panic>
-    assert(pte2page(*ptep) == p1);
+    assert(page_ref(p1) == 2);
 c0103c4e:	8b 45 f0             	mov    -0x10(%ebp),%eax
 c0103c51:	8b 00                	mov    (%eax),%eax
 c0103c53:	89 04 24             	mov    %eax,(%esp)
@@ -8321,7 +8321,7 @@ c0103c70:	c7 44 24 04 f5 01 00 	movl   $0x1f5,0x4(%esp)
 c0103c77:	00 
 c0103c78:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103c7f:	e8 75 c7 ff ff       	call   c01003f9 <__panic>
-    assert((*ptep & PTE_U) == 0);
+    assert(page_ref(p2) == 0);
 c0103c84:	8b 45 f0             	mov    -0x10(%ebp),%eax
 c0103c87:	8b 00                	mov    (%eax),%eax
 c0103c89:	83 e0 04             	and    $0x4,%eax
@@ -8335,14 +8335,14 @@ c0103ca0:	c7 44 24 04 f6 01 00 	movl   $0x1f6,0x4(%esp)
 c0103ca7:	00 
 c0103ca8:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103caf:	e8 45 c7 ff ff       	call   c01003f9 <__panic>
-
-    page_remove(boot_pgdir, 0x0);
+    assert((ptep = get_pte(boot_pgdir, PGSIZE, 0)) != NULL);
+    assert(pte2page(*ptep) == p1);
 c0103cb4:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c0103cb9:	c7 44 24 04 00 00 00 	movl   $0x0,0x4(%esp)
 c0103cc0:	00 
 c0103cc1:	89 04 24             	mov    %eax,(%esp)
 c0103cc4:	e8 46 f9 ff ff       	call   c010360f <page_remove>
-    assert(page_ref(p1) == 1);
+    assert((*ptep & PTE_U) == 0);
 c0103cc9:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c0103ccc:	89 04 24             	mov    %eax,(%esp)
 c0103ccf:	e8 80 ee ff ff       	call   c0102b54 <page_ref>
@@ -8356,7 +8356,7 @@ c0103ce9:	c7 44 24 04 f9 01 00 	movl   $0x1f9,0x4(%esp)
 c0103cf0:	00 
 c0103cf1:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103cf8:	e8 fc c6 ff ff       	call   c01003f9 <__panic>
-    assert(page_ref(p2) == 0);
+
 c0103cfd:	8b 45 e4             	mov    -0x1c(%ebp),%eax
 c0103d00:	89 04 24             	mov    %eax,(%esp)
 c0103d03:	e8 4c ee ff ff       	call   c0102b54 <page_ref>
@@ -8370,14 +8370,14 @@ c0103d1c:	c7 44 24 04 fa 01 00 	movl   $0x1fa,0x4(%esp)
 c0103d23:	00 
 c0103d24:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103d2b:	e8 c9 c6 ff ff       	call   c01003f9 <__panic>
-
-    page_remove(boot_pgdir, PGSIZE);
+    page_remove(boot_pgdir, 0x0);
+    assert(page_ref(p1) == 1);
 c0103d30:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c0103d35:	c7 44 24 04 00 10 00 	movl   $0x1000,0x4(%esp)
 c0103d3c:	00 
 c0103d3d:	89 04 24             	mov    %eax,(%esp)
 c0103d40:	e8 ca f8 ff ff       	call   c010360f <page_remove>
-    assert(page_ref(p1) == 0);
+    assert(page_ref(p2) == 0);
 c0103d45:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c0103d48:	89 04 24             	mov    %eax,(%esp)
 c0103d4b:	e8 04 ee ff ff       	call   c0102b54 <page_ref>
@@ -8391,7 +8391,7 @@ c0103d64:	c7 44 24 04 fd 01 00 	movl   $0x1fd,0x4(%esp)
 c0103d6b:	00 
 c0103d6c:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103d73:	e8 81 c6 ff ff       	call   c01003f9 <__panic>
-    assert(page_ref(p2) == 0);
+
 c0103d78:	8b 45 e4             	mov    -0x1c(%ebp),%eax
 c0103d7b:	89 04 24             	mov    %eax,(%esp)
 c0103d7e:	e8 d1 ed ff ff       	call   c0102b54 <page_ref>
@@ -8405,8 +8405,8 @@ c0103d97:	c7 44 24 04 fe 01 00 	movl   $0x1fe,0x4(%esp)
 c0103d9e:	00 
 c0103d9f:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103da6:	e8 4e c6 ff ff       	call   c01003f9 <__panic>
-
-    assert(page_ref(pde2page(boot_pgdir[0])) == 1);
+    page_remove(boot_pgdir, PGSIZE);
+    assert(page_ref(p1) == 0);
 c0103dab:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c0103db0:	8b 00                	mov    (%eax),%eax
 c0103db2:	89 04 24             	mov    %eax,(%esp)
@@ -8423,7 +8423,7 @@ c0103dd7:	c7 44 24 04 00 02 00 	movl   $0x200,0x4(%esp)
 c0103dde:	00 
 c0103ddf:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103de6:	e8 0e c6 ff ff       	call   c01003f9 <__panic>
-    free_page(pde2page(boot_pgdir[0]));
+    assert(page_ref(p2) == 0);
 c0103deb:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c0103df0:	8b 00                	mov    (%eax),%eax
 c0103df2:	89 04 24             	mov    %eax,(%esp)
@@ -8432,31 +8432,31 @@ c0103dfa:	c7 44 24 04 01 00 00 	movl   $0x1,0x4(%esp)
 c0103e01:	00 
 c0103e02:	89 04 24             	mov    %eax,(%esp)
 c0103e05:	e8 87 ef ff ff       	call   c0102d91 <free_pages>
-    boot_pgdir[0] = 0;
+
 c0103e0a:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c0103e0f:	c7 00 00 00 00 00    	movl   $0x0,(%eax)
-
-    cprintf("check_pgdir() succeeded!\n");
+    assert(page_ref(pde2page(boot_pgdir[0])) == 1);
+    free_page(pde2page(boot_pgdir[0]));
 c0103e15:	c7 04 24 1b 6c 10 c0 	movl   $0xc0106c1b,(%esp)
 c0103e1c:	e8 81 c4 ff ff       	call   c01002a2 <cprintf>
-}
+    boot_pgdir[0] = 0;
 c0103e21:	90                   	nop
 c0103e22:	c9                   	leave  
 c0103e23:	c3                   	ret    
 
 c0103e24 <check_boot_pgdir>:
 
-static void
-check_boot_pgdir(void) {
+    cprintf("check_pgdir() succeeded!\n");
+}
 c0103e24:	55                   	push   %ebp
 c0103e25:	89 e5                	mov    %esp,%ebp
 c0103e27:	83 ec 38             	sub    $0x38,%esp
-    pte_t *ptep;
-    int i;
-    for (i = 0; i < npage; i += PGSIZE) {
+
+static void
+check_boot_pgdir(void) {
 c0103e2a:	c7 45 f4 00 00 00 00 	movl   $0x0,-0xc(%ebp)
 c0103e31:	e9 ca 00 00 00       	jmp    c0103f00 <check_boot_pgdir+0xdc>
-        assert((ptep = get_pte(boot_pgdir, (uintptr_t)KADDR(i), 0)) != NULL);
+    pte_t *ptep;
 c0103e36:	8b 45 f4             	mov    -0xc(%ebp),%eax
 c0103e39:	89 45 e4             	mov    %eax,-0x1c(%ebp)
 c0103e3c:	8b 45 e4             	mov    -0x1c(%ebp),%eax
@@ -8493,7 +8493,7 @@ c0103eae:	c7 44 24 04 0c 02 00 	movl   $0x20c,0x4(%esp)
 c0103eb5:	00 
 c0103eb6:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103ebd:	e8 37 c5 ff ff       	call   c01003f9 <__panic>
-        assert(PTE_ADDR(*ptep) == i);
+    int i;
 c0103ec2:	8b 45 dc             	mov    -0x24(%ebp),%eax
 c0103ec5:	8b 00                	mov    (%eax),%eax
 c0103ec7:	25 00 f0 ff ff       	and    $0xfffff000,%eax
@@ -8509,15 +8509,15 @@ c0103ee5:	c7 44 24 04 0d 02 00 	movl   $0x20d,0x4(%esp)
 c0103eec:	00 
 c0103eed:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103ef4:	e8 00 c5 ff ff       	call   c01003f9 <__panic>
-    for (i = 0; i < npage; i += PGSIZE) {
+check_boot_pgdir(void) {
 c0103ef9:	81 45 f4 00 10 00 00 	addl   $0x1000,-0xc(%ebp)
 c0103f00:	8b 55 f4             	mov    -0xc(%ebp),%edx
 c0103f03:	a1 80 be 11 c0       	mov    0xc011be80,%eax
 c0103f08:	39 c2                	cmp    %eax,%edx
 c0103f0a:	0f 82 26 ff ff ff    	jb     c0103e36 <check_boot_pgdir+0x12>
-    }
-
-    assert(PDE_ADDR(boot_pgdir[PDX(VPT)]) == PADDR(boot_pgdir));
+    for (i = 0; i < npage; i += PGSIZE) {
+        assert((ptep = get_pte(boot_pgdir, (uintptr_t)KADDR(i), 0)) != NULL);
+        assert(PTE_ADDR(*ptep) == i);
 c0103f10:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c0103f15:	05 ac 0f 00 00       	add    $0xfac,%eax
 c0103f1a:	8b 00                	mov    (%eax),%eax
@@ -8547,8 +8547,8 @@ c0103f73:	c7 44 24 04 10 02 00 	movl   $0x210,0x4(%esp)
 c0103f7a:	00 
 c0103f7b:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103f82:	e8 72 c4 ff ff       	call   c01003f9 <__panic>
+    }
 
-    assert(boot_pgdir[0] == 0);
 c0103f87:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c0103f8c:	8b 00                	mov    (%eax),%eax
 c0103f8e:	85 c0                	test   %eax,%eax
@@ -8561,13 +8561,13 @@ c0103fa2:	c7 44 24 04 12 02 00 	movl   $0x212,0x4(%esp)
 c0103fa9:	00 
 c0103faa:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0103fb1:	e8 43 c4 ff ff       	call   c01003f9 <__panic>
+    assert(PDE_ADDR(boot_pgdir[PDX(VPT)]) == PADDR(boot_pgdir));
 
-    struct Page *p;
-    p = alloc_page();
+    assert(boot_pgdir[0] == 0);
 c0103fb6:	c7 04 24 01 00 00 00 	movl   $0x1,(%esp)
 c0103fbd:	e8 97 ed ff ff       	call   c0102d59 <alloc_pages>
 c0103fc2:	89 45 ec             	mov    %eax,-0x14(%ebp)
-    assert(page_insert(boot_pgdir, p, 0x100, PTE_W) == 0);
+
 c0103fc5:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c0103fca:	c7 44 24 0c 02 00 00 	movl   $0x2,0xc(%esp)
 c0103fd1:	00 
@@ -8587,7 +8587,7 @@ c0103ffd:	c7 44 24 04 16 02 00 	movl   $0x216,0x4(%esp)
 c0104004:	00 
 c0104005:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c010400c:	e8 e8 c3 ff ff       	call   c01003f9 <__panic>
-    assert(page_ref(p) == 1);
+    struct Page *p;
 c0104011:	8b 45 ec             	mov    -0x14(%ebp),%eax
 c0104014:	89 04 24             	mov    %eax,(%esp)
 c0104017:	e8 38 eb ff ff       	call   c0102b54 <page_ref>
@@ -8601,7 +8601,7 @@ c0104031:	c7 44 24 04 17 02 00 	movl   $0x217,0x4(%esp)
 c0104038:	00 
 c0104039:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0104040:	e8 b4 c3 ff ff       	call   c01003f9 <__panic>
-    assert(page_insert(boot_pgdir, p, 0x100 + PGSIZE, PTE_W) == 0);
+    p = alloc_page();
 c0104045:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c010404a:	c7 44 24 0c 02 00 00 	movl   $0x2,0xc(%esp)
 c0104051:	00 
@@ -8621,7 +8621,7 @@ c010407d:	c7 44 24 04 18 02 00 	movl   $0x218,0x4(%esp)
 c0104084:	00 
 c0104085:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c010408c:	e8 68 c3 ff ff       	call   c01003f9 <__panic>
-    assert(page_ref(p) == 2);
+    assert(page_insert(boot_pgdir, p, 0x100, PTE_W) == 0);
 c0104091:	8b 45 ec             	mov    -0x14(%ebp),%eax
 c0104094:	89 04 24             	mov    %eax,(%esp)
 c0104097:	e8 b8 ea ff ff       	call   c0102b54 <page_ref>
@@ -8635,15 +8635,15 @@ c01040b1:	c7 44 24 04 19 02 00 	movl   $0x219,0x4(%esp)
 c01040b8:	00 
 c01040b9:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c01040c0:	e8 34 c3 ff ff       	call   c01003f9 <__panic>
-
-    const char *str = "ucore: Hello world!!";
+    assert(page_ref(p) == 1);
+    assert(page_insert(boot_pgdir, p, 0x100 + PGSIZE, PTE_W) == 0);
 c01040c5:	c7 45 e8 5c 6d 10 c0 	movl   $0xc0106d5c,-0x18(%ebp)
-    strcpy((void *)0x100, str);
+    assert(page_ref(p) == 2);
 c01040cc:	8b 45 e8             	mov    -0x18(%ebp),%eax
 c01040cf:	89 44 24 04          	mov    %eax,0x4(%esp)
 c01040d3:	c7 04 24 00 01 00 00 	movl   $0x100,(%esp)
 c01040da:	e8 57 15 00 00       	call   c0105636 <strcpy>
-    assert(strcmp((void *)0x100, (void *)(0x100 + PGSIZE)) == 0);
+
 c01040df:	c7 44 24 04 00 11 00 	movl   $0x1100,0x4(%esp)
 c01040e6:	00 
 c01040e7:	c7 04 24 00 01 00 00 	movl   $0x100,(%esp)
@@ -8658,14 +8658,14 @@ c0104107:	c7 44 24 04 1d 02 00 	movl   $0x21d,0x4(%esp)
 c010410e:	00 
 c010410f:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c0104116:	e8 de c2 ff ff       	call   c01003f9 <__panic>
-
-    *(char *)(page2kva(p) + 0x100) = '\0';
+    const char *str = "ucore: Hello world!!";
+    strcpy((void *)0x100, str);
 c010411b:	8b 45 ec             	mov    -0x14(%ebp),%eax
 c010411e:	89 04 24             	mov    %eax,(%esp)
 c0104121:	e8 84 e9 ff ff       	call   c0102aaa <page2kva>
 c0104126:	05 00 01 00 00       	add    $0x100,%eax
 c010412b:	c6 00 00             	movb   $0x0,(%eax)
-    assert(strlen((const char *)0x100) == 0);
+    assert(strcmp((void *)0x100, (void *)(0x100 + PGSIZE)) == 0);
 c010412e:	c7 04 24 00 01 00 00 	movl   $0x100,(%esp)
 c0104135:	e8 a6 14 00 00       	call   c01055e0 <strlen>
 c010413a:	85 c0                	test   %eax,%eax
@@ -8679,13 +8679,13 @@ c0104155:	00
 c0104156:	c7 04 24 28 69 10 c0 	movl   $0xc0106928,(%esp)
 c010415d:	e8 97 c2 ff ff       	call   c01003f9 <__panic>
 
-    free_page(p);
+    *(char *)(page2kva(p) + 0x100) = '\0';
 c0104162:	c7 44 24 04 01 00 00 	movl   $0x1,0x4(%esp)
 c0104169:	00 
 c010416a:	8b 45 ec             	mov    -0x14(%ebp),%eax
 c010416d:	89 04 24             	mov    %eax,(%esp)
 c0104170:	e8 1c ec ff ff       	call   c0102d91 <free_pages>
-    free_page(pde2page(boot_pgdir[0]));
+    assert(strlen((const char *)0x100) == 0);
 c0104175:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c010417a:	8b 00                	mov    (%eax),%eax
 c010417c:	89 04 24             	mov    %eax,(%esp)
@@ -8694,27 +8694,27 @@ c0104184:	c7 44 24 04 01 00 00 	movl   $0x1,0x4(%esp)
 c010418b:	00 
 c010418c:	89 04 24             	mov    %eax,(%esp)
 c010418f:	e8 fd eb ff ff       	call   c0102d91 <free_pages>
-    boot_pgdir[0] = 0;
+
 c0104194:	a1 e0 89 11 c0       	mov    0xc01189e0,%eax
 c0104199:	c7 00 00 00 00 00    	movl   $0x0,(%eax)
-
-    cprintf("check_boot_pgdir() succeeded!\n");
+    free_page(p);
+    free_page(pde2page(boot_pgdir[0]));
 c010419f:	c7 04 24 d0 6d 10 c0 	movl   $0xc0106dd0,(%esp)
 c01041a6:	e8 f7 c0 ff ff       	call   c01002a2 <cprintf>
-}
+    boot_pgdir[0] = 0;
 c01041ab:	90                   	nop
 c01041ac:	c9                   	leave  
 c01041ad:	c3                   	ret    
 
 c01041ae <perm2str>:
 
-//perm2str - use string 'u,r,w,-' to present the permission
-static const char *
-perm2str(int perm) {
+    cprintf("check_boot_pgdir() succeeded!\n");
+}
+
 c01041ae:	55                   	push   %ebp
 c01041af:	89 e5                	mov    %esp,%ebp
-    static char str[4];
-    str[0] = (perm & PTE_U) ? 'u' : '-';
+//perm2str - use string 'u,r,w,-' to present the permission
+static const char *
 c01041b1:	8b 45 08             	mov    0x8(%ebp),%eax
 c01041b4:	83 e0 04             	and    $0x4,%eax
 c01041b7:	85 c0                	test   %eax,%eax
@@ -8723,9 +8723,9 @@ c01041bb:	b0 75                	mov    $0x75,%al
 c01041bd:	eb 02                	jmp    c01041c1 <perm2str+0x13>
 c01041bf:	b0 2d                	mov    $0x2d,%al
 c01041c1:	a2 08 bf 11 c0       	mov    %al,0xc011bf08
-    str[1] = 'r';
+perm2str(int perm) {
 c01041c6:	c6 05 09 bf 11 c0 72 	movb   $0x72,0xc011bf09
-    str[2] = (perm & PTE_W) ? 'w' : '-';
+    static char str[4];
 c01041cd:	8b 45 08             	mov    0x8(%ebp),%eax
 c01041d0:	83 e0 02             	and    $0x2,%eax
 c01041d3:	85 c0                	test   %eax,%eax
@@ -8734,36 +8734,36 @@ c01041d7:	b0 77                	mov    $0x77,%al
 c01041d9:	eb 02                	jmp    c01041dd <perm2str+0x2f>
 c01041db:	b0 2d                	mov    $0x2d,%al
 c01041dd:	a2 0a bf 11 c0       	mov    %al,0xc011bf0a
-    str[3] = '\0';
+    str[0] = (perm & PTE_U) ? 'u' : '-';
 c01041e2:	c6 05 0b bf 11 c0 00 	movb   $0x0,0xc011bf0b
-    return str;
+    str[1] = 'r';
 c01041e9:	b8 08 bf 11 c0       	mov    $0xc011bf08,%eax
-}
+    str[2] = (perm & PTE_W) ? 'w' : '-';
 c01041ee:	5d                   	pop    %ebp
 c01041ef:	c3                   	ret    
 
 c01041f0 <get_pgtable_items>:
+//  left:        no use ???
+//  right:       the high side of table's range
+//  start:       the low side of table's range
 //  table:       the beginning addr of table
 //  left_store:  the pointer of the high side of table's next range
 //  right_store: the pointer of the low side of table's next range
-// return value: 0 - not a invalid item range, perm - a valid item range with perm permission
-static int
-get_pgtable_items(size_t left, size_t right, size_t start, uintptr_t *table, size_t *left_store, size_t *right_store) {
 c01041f0:	55                   	push   %ebp
 c01041f1:	89 e5                	mov    %esp,%ebp
 c01041f3:	83 ec 10             	sub    $0x10,%esp
-    if (start >= right) {
+// return value: 0 - not a invalid item range, perm - a valid item range with perm permission
 c01041f6:	8b 45 10             	mov    0x10(%ebp),%eax
 c01041f9:	3b 45 0c             	cmp    0xc(%ebp),%eax
 c01041fc:	72 0d                	jb     c010420b <get_pgtable_items+0x1b>
-        return 0;
+static int
 c01041fe:	b8 00 00 00 00       	mov    $0x0,%eax
 c0104203:	e9 98 00 00 00       	jmp    c01042a0 <get_pgtable_items+0xb0>
-    }
-    while (start < right && !(table[start] & PTE_P)) {
-        start ++;
+get_pgtable_items(size_t left, size_t right, size_t start, uintptr_t *table, size_t *left_store, size_t *right_store) {
+    if (start >= right) {
+        return 0;
 c0104208:	ff 45 10             	incl   0x10(%ebp)
-    while (start < right && !(table[start] & PTE_P)) {
+    if (start >= right) {
 c010420b:	8b 45 10             	mov    0x10(%ebp),%eax
 c010420e:	3b 45 0c             	cmp    0xc(%ebp),%eax
 c0104211:	73 18                	jae    c010422b <get_pgtable_items+0x3b>
@@ -8776,19 +8776,19 @@ c0104224:	83 e0 01             	and    $0x1,%eax
 c0104227:	85 c0                	test   %eax,%eax
 c0104229:	74 dd                	je     c0104208 <get_pgtable_items+0x18>
     }
-    if (start < right) {
+    while (start < right && !(table[start] & PTE_P)) {
 c010422b:	8b 45 10             	mov    0x10(%ebp),%eax
 c010422e:	3b 45 0c             	cmp    0xc(%ebp),%eax
 c0104231:	73 68                	jae    c010429b <get_pgtable_items+0xab>
-        if (left_store != NULL) {
+        start ++;
 c0104233:	83 7d 18 00          	cmpl   $0x0,0x18(%ebp)
 c0104237:	74 08                	je     c0104241 <get_pgtable_items+0x51>
-            *left_store = start;
+    }
 c0104239:	8b 45 18             	mov    0x18(%ebp),%eax
 c010423c:	8b 55 10             	mov    0x10(%ebp),%edx
 c010423f:	89 10                	mov    %edx,(%eax)
-        }
-        int perm = (table[start ++] & PTE_USER);
+    if (start < right) {
+        if (left_store != NULL) {
 c0104241:	8b 45 10             	mov    0x10(%ebp),%eax
 c0104244:	8d 50 01             	lea    0x1(%eax),%edx
 c0104247:	89 55 10             	mov    %edx,0x10(%ebp)
@@ -8798,11 +8798,11 @@ c0104254:	01 d0                	add    %edx,%eax
 c0104256:	8b 00                	mov    (%eax),%eax
 c0104258:	83 e0 07             	and    $0x7,%eax
 c010425b:	89 45 fc             	mov    %eax,-0x4(%ebp)
-        while (start < right && (table[start] & PTE_USER) == perm) {
+            *left_store = start;
 c010425e:	eb 03                	jmp    c0104263 <get_pgtable_items+0x73>
-            start ++;
+        }
 c0104260:	ff 45 10             	incl   0x10(%ebp)
-        while (start < right && (table[start] & PTE_USER) == perm) {
+            *left_store = start;
 c0104263:	8b 45 10             	mov    0x10(%ebp),%eax
 c0104266:	3b 45 0c             	cmp    0xc(%ebp),%eax
 c0104269:	73 1d                	jae    c0104288 <get_pgtable_items+0x98>
@@ -8816,53 +8816,53 @@ c010427f:	89 c2                	mov    %eax,%edx
 c0104281:	8b 45 fc             	mov    -0x4(%ebp),%eax
 c0104284:	39 c2                	cmp    %eax,%edx
 c0104286:	74 d8                	je     c0104260 <get_pgtable_items+0x70>
-        }
-        if (right_store != NULL) {
+        int perm = (table[start ++] & PTE_USER);
+        while (start < right && (table[start] & PTE_USER) == perm) {
 c0104288:	83 7d 1c 00          	cmpl   $0x0,0x1c(%ebp)
 c010428c:	74 08                	je     c0104296 <get_pgtable_items+0xa6>
-            *right_store = start;
+            start ++;
 c010428e:	8b 45 1c             	mov    0x1c(%ebp),%eax
 c0104291:	8b 55 10             	mov    0x10(%ebp),%edx
 c0104294:	89 10                	mov    %edx,(%eax)
         }
-        return perm;
+        if (right_store != NULL) {
 c0104296:	8b 45 fc             	mov    -0x4(%ebp),%eax
 c0104299:	eb 05                	jmp    c01042a0 <get_pgtable_items+0xb0>
-    }
-    return 0;
+            *right_store = start;
+        }
 c010429b:	b8 00 00 00 00       	mov    $0x0,%eax
-}
+        return perm;
 c01042a0:	c9                   	leave  
 c01042a1:	c3                   	ret    
 
 c01042a2 <print_pgdir>:
+    }
+    return 0;
+}
 
-//print_pgdir - print the PDT&PT
-void
-print_pgdir(void) {
 c01042a2:	55                   	push   %ebp
 c01042a3:	89 e5                	mov    %esp,%ebp
 c01042a5:	57                   	push   %edi
 c01042a6:	56                   	push   %esi
 c01042a7:	53                   	push   %ebx
 c01042a8:	83 ec 4c             	sub    $0x4c,%esp
-    cprintf("-------------------- BEGIN --------------------\n");
+//print_pgdir - print the PDT&PT
 c01042ab:	c7 04 24 f0 6d 10 c0 	movl   $0xc0106df0,(%esp)
 c01042b2:	e8 eb bf ff ff       	call   c01002a2 <cprintf>
-    size_t left, right = 0, perm;
+void
 c01042b7:	c7 45 dc 00 00 00 00 	movl   $0x0,-0x24(%ebp)
-    while ((perm = get_pgtable_items(0, NPDEENTRY, right, vpd, &left, &right)) != 0) {
+print_pgdir(void) {
 c01042be:	e9 fa 00 00 00       	jmp    c01043bd <print_pgdir+0x11b>
-        cprintf("PDE(%03x) %08x-%08x %08x %s\n", right - left,
+    cprintf("-------------------- BEGIN --------------------\n");
 c01042c3:	8b 45 e4             	mov    -0x1c(%ebp),%eax
 c01042c6:	89 04 24             	mov    %eax,(%esp)
 c01042c9:	e8 e0 fe ff ff       	call   c01041ae <perm2str>
-                left * PTSIZE, right * PTSIZE, (right - left) * PTSIZE, perm2str(perm));
+    size_t left, right = 0, perm;
 c01042ce:	8b 4d dc             	mov    -0x24(%ebp),%ecx
 c01042d1:	8b 55 e0             	mov    -0x20(%ebp),%edx
 c01042d4:	29 d1                	sub    %edx,%ecx
 c01042d6:	89 ca                	mov    %ecx,%edx
-        cprintf("PDE(%03x) %08x-%08x %08x %s\n", right - left,
+    cprintf("-------------------- BEGIN --------------------\n");
 c01042d8:	89 d6                	mov    %edx,%esi
 c01042da:	c1 e6 16             	shl    $0x16,%esi
 c01042dd:	8b 55 dc             	mov    -0x24(%ebp),%edx
@@ -8882,22 +8882,22 @@ c0104303:	89 4c 24 08          	mov    %ecx,0x8(%esp)
 c0104307:	89 54 24 04          	mov    %edx,0x4(%esp)
 c010430b:	c7 04 24 21 6e 10 c0 	movl   $0xc0106e21,(%esp)
 c0104312:	e8 8b bf ff ff       	call   c01002a2 <cprintf>
-        size_t l, r = left * NPTEENTRY;
+    while ((perm = get_pgtable_items(0, NPDEENTRY, right, vpd, &left, &right)) != 0) {
 c0104317:	8b 45 e0             	mov    -0x20(%ebp),%eax
 c010431a:	c1 e0 0a             	shl    $0xa,%eax
 c010431d:	89 45 d4             	mov    %eax,-0x2c(%ebp)
-        while ((perm = get_pgtable_items(left * NPTEENTRY, right * NPTEENTRY, r, vpt, &l, &r)) != 0) {
+        cprintf("PDE(%03x) %08x-%08x %08x %s\n", right - left,
 c0104320:	eb 54                	jmp    c0104376 <print_pgdir+0xd4>
-            cprintf("  |-- PTE(%05x) %08x-%08x %08x %s\n", r - l,
+                left * PTSIZE, right * PTSIZE, (right - left) * PTSIZE, perm2str(perm));
 c0104322:	8b 45 e4             	mov    -0x1c(%ebp),%eax
 c0104325:	89 04 24             	mov    %eax,(%esp)
 c0104328:	e8 81 fe ff ff       	call   c01041ae <perm2str>
-                    l * PGSIZE, r * PGSIZE, (r - l) * PGSIZE, perm2str(perm));
+        size_t l, r = left * NPTEENTRY;
 c010432d:	8b 4d d4             	mov    -0x2c(%ebp),%ecx
 c0104330:	8b 55 d8             	mov    -0x28(%ebp),%edx
 c0104333:	29 d1                	sub    %edx,%ecx
 c0104335:	89 ca                	mov    %ecx,%edx
-            cprintf("  |-- PTE(%05x) %08x-%08x %08x %s\n", r - l,
+                left * PTSIZE, right * PTSIZE, (right - left) * PTSIZE, perm2str(perm));
 c0104337:	89 d6                	mov    %edx,%esi
 c0104339:	c1 e6 0c             	shl    $0xc,%esi
 c010433c:	8b 55 d4             	mov    -0x2c(%ebp),%edx
@@ -8917,7 +8917,7 @@ c0104362:	89 4c 24 08          	mov    %ecx,0x8(%esp)
 c0104366:	89 54 24 04          	mov    %edx,0x4(%esp)
 c010436a:	c7 04 24 40 6e 10 c0 	movl   $0xc0106e40,(%esp)
 c0104371:	e8 2c bf ff ff       	call   c01002a2 <cprintf>
-        while ((perm = get_pgtable_items(left * NPTEENTRY, right * NPTEENTRY, r, vpt, &l, &r)) != 0) {
+        cprintf("PDE(%03x) %08x-%08x %08x %s\n", right - left,
 c0104376:	be 00 00 c0 fa       	mov    $0xfac00000,%esi
 c010437b:	8b 45 d4             	mov    -0x2c(%ebp),%eax
 c010437e:	8b 55 dc             	mov    -0x24(%ebp),%edx
@@ -8938,7 +8938,7 @@ c01043ab:	e8 40 fe ff ff       	call   c01041f0 <get_pgtable_items>
 c01043b0:	89 45 e4             	mov    %eax,-0x1c(%ebp)
 c01043b3:	83 7d e4 00          	cmpl   $0x0,-0x1c(%ebp)
 c01043b7:	0f 85 65 ff ff ff    	jne    c0104322 <print_pgdir+0x80>
-    while ((perm = get_pgtable_items(0, NPDEENTRY, right, vpd, &left, &right)) != 0) {
+print_pgdir(void) {
 c01043bd:	b9 00 b0 fe fa       	mov    $0xfafeb000,%ecx
 c01043c2:	8b 45 dc             	mov    -0x24(%ebp),%eax
 c01043c5:	8d 55 dc             	lea    -0x24(%ebp),%edx
@@ -8954,12 +8954,12 @@ c01043ea:	e8 01 fe ff ff       	call   c01041f0 <get_pgtable_items>
 c01043ef:	89 45 e4             	mov    %eax,-0x1c(%ebp)
 c01043f2:	83 7d e4 00          	cmpl   $0x0,-0x1c(%ebp)
 c01043f6:	0f 85 c7 fe ff ff    	jne    c01042c3 <print_pgdir+0x21>
-        }
-    }
-    cprintf("--------------------- END ---------------------\n");
+        while ((perm = get_pgtable_items(left * NPTEENTRY, right * NPTEENTRY, r, vpt, &l, &r)) != 0) {
+            cprintf("  |-- PTE(%05x) %08x-%08x %08x %s\n", r - l,
+                    l * PGSIZE, r * PGSIZE, (r - l) * PGSIZE, perm2str(perm));
 c01043fc:	c7 04 24 64 6e 10 c0 	movl   $0xc0106e64,(%esp)
 c0104403:	e8 9a be ff ff       	call   c01002a2 <cprintf>
-}
+        }
 c0104408:	90                   	nop
 c0104409:	83 c4 4c             	add    $0x4c,%esp
 c010440c:	5b                   	pop    %ebx
