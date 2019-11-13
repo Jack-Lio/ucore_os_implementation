@@ -1,9 +1,9 @@
 # 操作系统lab2
-> [Jack-Lio'github](https://github.com/Jack-Lio)关于ucore实验lab1的相关记录     
-> 2019年11月6日最新修改
+> [Jack-Lio'github](https://github.com/Jack-Lio)关于ucore实验lab2的相关记录     
+> 2019年11月10日最新修改
 
 -   [小小吐槽](#小小吐槽)
--   [练习0 merge lab1](#练习1)
+-   [练习0 merge lab1](#练习0)
 -   [实验内容概括](#实验内容概括)
 -   [练习1 FF内存分配算法](#练习1)
 -   [练习2 get_pte函数实现](#练习2)
