@@ -1,7 +1,7 @@
 #include <x86.h>
 #include <intr.h>
 
-/* intr_enable - enable irq interrupt */
+/* intr_enable - enable irq interrupt 打开中断 */
 void
 intr_enable(void) {
     sti();

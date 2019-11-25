@@ -103,7 +103,8 @@ struct Page {
     unsigned int property;          // the num of free block, used in first fit pm manager
     list_entry_t page_link;         // free list link
     list_entry_t pra_page_link;     // used for pra (page replace algorithm)
-    uintptr_t pra_vaddr;            // used for pra (page replace algorithm)
+    // 可以构造按照第一次访问时间排序的列表，表头可设置为pra_list_head
+    uintptr_t pra_vaddr;            // used for pra (page replace algorithm)用来记录此物理页对应的虚拟页起始地址。
 };
 
 /* Flags describing the status of a page frame */

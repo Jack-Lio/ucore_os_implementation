@@ -17,13 +17,13 @@
 struct pmm_manager {
     const char *name;                                 // XXX_pmm_manager's name
     void (*init)(void);                               // initialize internal description&management data structure
-                                                      // (free block list, number of free block) of XXX_pmm_manager 
+                                                      // (free block list, number of free block) of XXX_pmm_manager
     void (*init_memmap)(struct Page *base, size_t n); // setup description&management data structcure according to
-                                                      // the initial free physical memory space 
-    struct Page *(*alloc_pages)(size_t n);            // allocate >=n pages, depend on the allocation algorithm 
+                                                      // the initial free physical memory space
+    struct Page *(*alloc_pages)(size_t n);            // allocate >=n pages, depend on the allocation algorithm
     void (*free_pages)(struct Page *base, size_t n);  // free >=n pages with "base" addr of Page descriptor structures(memlayout.h)
-    size_t (*nr_free_pages)(void);                    // return the number of free pages 
-    void (*check)(void);                              // check the correctness of XXX_pmm_manager 
+    size_t (*nr_free_pages)(void);                    // return the number of free pages
+    void (*check)(void);                              // check the correctness of XXX_pmm_manager
 };
 
 extern const struct pmm_manager *pmm_manager;
@@ -55,6 +55,7 @@ void print_pgdir(void);
  * where the machine's maximum 256MB of physical memory is mapped and returns the
  * corresponding physical address.  It panics if you pass it a non-kernel virtual address.
  * */
+ // 将内核虚拟地址转为物理地址
 #define PADDR(kva) ({                                                   \
             uintptr_t __m_kva = (uintptr_t)(kva);                       \
             if (__m_kva < KERNBASE) {                                   \
@@ -67,6 +68,7 @@ void print_pgdir(void);
  * KADDR - takes a physical address and returns the corresponding kernel virtual
  * address. It panics if you pass an invalid physical address.
  * */
+ //将物理地址转为内核虚拟地址
 #define KADDR(pa) ({                                                    \
             uintptr_t __m_pa = (pa);                                    \
             size_t __m_ppn = PPN(__m_pa);                               \
