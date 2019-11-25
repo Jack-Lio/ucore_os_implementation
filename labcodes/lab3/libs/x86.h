@@ -146,14 +146,14 @@ ltr(uint16_t sel) {
 }
 
 static inline uint32_t
-read_eflags(void) {
+read_eflags(void) {   //保存标志寄存器的值
     uint32_t eflags;
     asm volatile ("pushfl; popl %0" : "=r" (eflags));
     return eflags;
 }
 
 static inline void
-write_eflags(uint32_t eflags) {
+write_eflags(uint32_t eflags) { //恢复标志寄存器的值
     asm volatile ("pushl %0; popfl" :: "r" (eflags));
 }
 

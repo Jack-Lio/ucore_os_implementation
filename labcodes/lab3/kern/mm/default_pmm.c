@@ -106,43 +106,47 @@ default_init(void) {
 
 static void
 default_init_memmap(struct Page *base, size_t n) {
-    assert(n > 0);
+    assert(n > 0);    //断言，如果判断为false，直接中断程序的执行
     struct Page *p = base;
     for (; p != base + n; p ++) {
-        assert(PageReserved(p));
-        p->flags = p->property = 0;
-        set_page_ref(p, 0);
+        assert(PageReserved(p));        //判断该页保留位是否为1，如果为内核占用页则清空该标志位
+        p->flags = p->property = 0;     //标志为清0，空闲块数量置0
+        set_page_ref(p, 0);                   //设置引用量为0
     }
     base->property = n;
     SetPageProperty(base);
     nr_free += n;
-    list_add(&free_list, &(base->page_link));
+    //应该使用list_add_before,否则使用list_add默认为add_after,
+    //这样新增加的页总是在后面，不适合FFMA算法，应该要按照地址排序
+    list_add_before(&free_list, &(base->page_link));    //cc
 }
 
 static struct Page *
 default_alloc_pages(size_t n) {
     assert(n > 0);
-    if (n > nr_free) {
+    if (n > nr_free) {      //要求的超过空闲空间大小，返回NULL
         return NULL;
     }
     struct Page *page = NULL;
-    list_entry_t *le = &free_list;
+    list_entry_t *le = &free_list;          //查找符合条件的page
     while ((le = list_next(le)) != &free_list) {
         struct Page *p = le2page(le, page_link);
-        if (p->property >= n) {
+        if (p->property >= n) {               //找到符合条件的块，赋值给page变量带出
             page = p;
             break;
         }
     }
-    if (page != NULL) {
-        list_del(&(page->page_link));
+    if (page != NULL) {           //找到了符合条件的页，进行设置
         if (page->property > n) {
-            struct Page *p = page + n;
+            struct Page *p = page + n;        //将多余的页空间，重新放入空闲页表目录
             p->property = page->property - n;
-            list_add(&free_list, &(p->page_link));
+            //应该要对剩余的部分空闲页设置属性位，在init中属性位全为0，这里需要设为1,表明空闲块
+            SetPageProperty(p);                 //++
+            list_add_after(&(page->page_link), &(p->page_link));  //cc注意一定要添加在后面,按地址排序
     }
-        nr_free -= n;
-        ClearPageProperty(page);
+      list_del(&(page->page_link));     // 先要处理完剩余空间再删除该页，从空闲页表目录页删除该页
+      nr_free -= n;       //总空闲块数减去分配页块数
+      ClearPageProperty(page);//将属性位置0，标记该页已被分配
     }
     return page;
 }
@@ -151,23 +155,23 @@ static void
 default_free_pages(struct Page *base, size_t n) {
     assert(n > 0);
     struct Page *p = base;
-    for (; p != base + n; p ++) {
-        assert(!PageReserved(p) && !PageProperty(p));
-        p->flags = 0;
+    for (; p != base + n; p ++) {   //释放合并页空间的时候，跳过内核占用的页，和可用的空闲页
+        assert(!PageReserved(p) && !PageProperty(p));     //否则为用户态的占用区
+        p->flags = 0;         //标志位清零
         set_page_ref(p, 0);
     }
     base->property = n;
     SetPageProperty(base);
-    list_entry_t *le = list_next(&free_list);
-    while (le != &free_list) {
+    list_entry_t *le = list_next(&free_list);    //获取头页地址
+    while (le != &free_list) {            //合并空页
         p = le2page(le, page_link);
         le = list_next(le);
-        if (base + base->property == p) {
+        if (base + base->property == p) {     //如果该页为当前释放页的紧邻后页，则直接释放后面一页的属性位，将之和当前页合并
             base->property += p->property;
-            ClearPageProperty(p);
-            list_del(&(p->page_link));
+            ClearPageProperty(p);     //清楚属性位
+            list_del(&(p->page_link));    //在空闲页表中删除该页
         }
-        else if (p + p->property == base) {
+        else if (p + p->property == base) {   //如果找到紧邻前一页是空页，则把前页合并到当前页
             p->property += base->property;
             ClearPageProperty(base);
             base = p;
@@ -175,7 +179,16 @@ default_free_pages(struct Page *base, size_t n) {
         }
     }
     nr_free += n;
-    list_add(&free_list, &(base->page_link));
+    //从头到尾进行一次遍历，找到合适的插入位置,把合并和的页插入到找到的位置前面
+    le  = list_next(&free_list);
+    while(le!=&free_list){
+      p = le2page(le,page_link);
+      if(base+base->property<=p){
+        break;
+      }
+      le = list_next(le);
+    }
+    list_add_before(le, &(base->page_link));    //cc应该使用add_before把整合的页插入找到的位置
 }
 
 static size_t
@@ -234,7 +247,7 @@ basic_check(void) {
     free_page(p2);
 }
 
-// LAB2: below code is used to check the first fit allocation algorithm (your EXERCISE 1) 
+// LAB2: below code is used to check the first fit allocation algorithm (your EXERCISE 1)
 // NOTICE: You SHOULD NOT CHANGE basic_check, default_check functions!
 static void
 default_check(void) {
@@ -308,4 +321,3 @@ const struct pmm_manager default_pmm_manager = {
     .nr_free_pages = default_nr_free_pages,
     .check = default_check,
 };
-
