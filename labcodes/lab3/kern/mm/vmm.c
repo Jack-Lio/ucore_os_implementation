@@ -402,7 +402,7 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
               goto failed;
             }
             page_insert(mm->pgdir,page,addr,perm);        //(2) According to the mm, addr AND page, setup the map of phy addr <---> logical addr
-            swap_map_swappable(mm,addr,page,1);            //(3) make the page swappable.
+            swap_map_swappable(mm,addr,page,1);            //(3) make the page swappable.记录该页的访问情况
             page->pra_vaddr = addr;                                             //使用pra_vaddr记录该物理页的虚拟地址起始地址
         }
         else {
