@@ -1,4 +1,4 @@
-# 操作系统lab2
+# 操作系统lab3
 > [Jack-Lio'github](https://github.com/Jack-Lio)关于ucore实验lab3的相关记录     
 > 2019年11月12日最新修改
 
@@ -7,8 +7,7 @@
 -   [练习0 merge lab2](#练习0)
 -   [练习1 给未被映射的地址映射上物理页](#练习1)
 -   [练习2 补充完成基于FIFO的页面替换算法](#练习2)
--   [拓展练习 实现识别dirty bit的 extended clock页替
-换算法](#challenge)
+-   [拓展练习 实现识别dirty bit的 extended clock页替换算法](#challenge)
 
 ## 小小吐槽一下
 

@@ -1,5 +1,5 @@
 .text
-.globl switch_to
+.globl switch_to            # 实现上下问的切换，利用堆栈保存和恢复进程的上下文
 switch_to:                      # switch_to(from, to)
 
     # save from's registers
@@ -27,4 +27,3 @@ switch_to:                      # switch_to(from, to)
     pushl 0(%eax)               # push eip
 
     ret
-

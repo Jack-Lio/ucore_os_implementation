@@ -22,20 +22,20 @@ manage all these details efficiently. In ucore, a thread is just a special kind 
 process state       :     meaning               -- reason
     PROC_UNINIT     :   uninitialized           -- alloc_proc
     PROC_SLEEPING   :   sleeping                -- try_free_pages, do_wait, do_sleep
-    PROC_RUNNABLE   :   runnable(maybe running) -- proc_init, wakeup_proc, 
+    PROC_RUNNABLE   :   runnable(maybe running) -- proc_init, wakeup_proc,
     PROC_ZOMBIE     :   almost dead             -- do_exit
 
 -----------------------------
 process state changing:
-                                            
+
   alloc_proc                                 RUNNING
       +                                   +--<----<--+
       +                                   + proc_run +
-      V                                   +-->---->--+ 
+      V                                   +-->---->--+
 PROC_UNINIT -- proc_init/wakeup_proc --> PROC_RUNNABLE -- try_free_pages/do_wait/do_sleep --> PROC_SLEEPING --
                                            A      +                                                           +
                                            |      +--- do_exit --> PROC_ZOMBIE                                +
-                                           +                                                                  + 
+                                           +                                                                  +
                                            -----------------------wakeup_proc----------------------------------
 -----------------------------
 process relations
@@ -51,9 +51,9 @@ SYS_wait        : wait process                            -->do_wait
 SYS_exec        : after fork, process execute a program   -->load a program and refresh the mm
 SYS_clone       : create child thread                     -->do_fork-->wakeup_proc
 SYS_yield       : process flag itself need resecheduling, -- proc->need_sched=1, then scheduler will rescheule this process
-SYS_sleep       : process sleep                           -->do_sleep 
+SYS_sleep       : process sleep                           -->do_sleep
 SYS_kill        : kill process                            -->do_kill-->proc->flags |= PF_EXITING
-                                                                 -->wakeup_proc-->do_wait-->do_exit   
+                                                                 -->wakeup_proc-->do_wait-->do_exit
 SYS_getpid      : get the process's pid
 
 */
@@ -204,7 +204,7 @@ find_proc(int pid) {
 }
 
 // kernel_thread - create a kernel thread using "fn" function
-// NOTE: the contents of temp trapframe tf will be copied to 
+// NOTE: the contents of temp trapframe tf will be copied to
 //       proc->tf in do_fork-->copy_thread function
 int
 kernel_thread(int (*fn)(void *), void *arg, uint32_t clone_flags) {
@@ -324,13 +324,13 @@ init_main(void *arg) {
     return 0;
 }
 
-// proc_init - set up the first kernel thread idleproc "idle" by itself and 
+// proc_init - set up the first kernel thread idleproc "idle" by itself and
 //           - create the second kernel thread init_main
 void
 proc_init(void) {
     int i;
 
-    list_init(&proc_list);
+    list_init(&proc_list);    //初始化线程控制块链表
     for (i = 0; i < HASH_LIST_SIZE; i ++) {
         list_init(hash_list + i);
     }
@@ -364,9 +364,8 @@ proc_init(void) {
 void
 cpu_idle(void) {
     while (1) {
-        if (current->need_resched) {
+        if (current->need_resched) {              //如果need_resched不为0 ，则进行调度
             schedule();
         }
     }
 }
-
