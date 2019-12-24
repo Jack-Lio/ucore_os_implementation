@@ -40,12 +40,12 @@ struct Page *pages;
 size_t npage = 0;
 
 // virtual address of boot-time page directory
-extern pde_t __boot_pgdir;    //引导页目录的虚拟地址
+extern pde_t __boot_pgdir;
 pde_t *boot_pgdir = &__boot_pgdir;
 // physical address of boot-time page directory
-uintptr_t boot_cr3;   //引导页目录的物理地址
+uintptr_t boot_cr3;
 
-// physical memory management    物理内存管理单元
+// physical memory management
 const struct pmm_manager *pmm_manager;
 
 /* *
@@ -157,7 +157,7 @@ struct Page *
 alloc_pages(size_t n) {
     struct Page *page=NULL;
     bool intr_flag;
-    
+
     while (1)
     {
          local_intr_save(intr_flag);
@@ -336,7 +336,7 @@ pmm_init(void) {
     check_boot_pgdir();
 
     print_pgdir();
-    
+
     kmalloc_init();
 
 }

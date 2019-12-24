@@ -102,6 +102,18 @@ alloc_proc(void) {
      *       uint32_t flags;                             // Process flag
      *       char name[PROC_NAME_LEN + 1];               // Process name
      */
+    proc->state = PROC_UNINIT;               //设置进程为初始态
+    proc->pid = -1;                                           //不能是0，因为零号进程需要使用
+    proc->runs = 0;                                          //运行时间
+    proc->kstack = 0;                                     //栈设置
+    proc->need_resched = 0;
+    proc->parent = NULL;
+    proc->mm = NULL;
+    memset(&(proc->context),0,sizeof(struct context));
+    proc->tf = NULL;
+    proc->cr3 = boot_cr3;                           //进程创建之初视为内核进程
+    proc->flags = 0;
+    memset(proc->name,0,PROC_NAME_LEN);     //分配内存空间
     }
     return proc;
 }
@@ -208,14 +220,15 @@ find_proc(int pid) {
 //       proc->tf in do_fork-->copy_thread function
 int
 kernel_thread(int (*fn)(void *), void *arg, uint32_t clone_flags) {
-    struct trapframe tf;
-    memset(&tf, 0, sizeof(struct trapframe));
-    tf.tf_cs = KERNEL_CS;
+    struct trapframe tf;                                            //中断信息帧
+    memset(&tf, 0, sizeof(struct trapframe));//分配一个空间给中断信息帧
+    tf.tf_cs = KERNEL_CS;                                       //设置信息帧的各个位信息
     tf.tf_ds = tf.tf_es = tf.tf_ss = KERNEL_DS;
-    tf.tf_regs.reg_ebx = (uint32_t)fn;
-    tf.tf_regs.reg_edx = (uint32_t)arg;
-    tf.tf_eip = (uint32_t)kernel_thread_entry;
-    return do_fork(clone_flags | CLONE_VM, 0, &tf);
+    tf.tf_regs.reg_ebx = (uint32_t)fn;                 //函数地址进入寄存器的暂存位置
+    tf.tf_regs.reg_edx = (uint32_t)arg;              //参数位置
+    tf.tf_eip = (uint32_t)kernel_thread_entry;   //进程执行开始入口，在entry.s中定义，
+    //实际上是实现了一个函数执行的套子，做好了参数和返回值的压栈操作和函数退出操作
+    return do_fork(clone_flags | CLONE_VM, 0, &tf);     //调用do_fork函数创建线程
 }
 
 // setup_kstack - alloc pages with size KSTACKPAGE as process kernel stack
@@ -251,12 +264,16 @@ copy_thread(struct proc_struct *proc, uintptr_t esp, struct trapframe *tf) {
     proc->tf = (struct trapframe *)(proc->kstack + KSTACKSIZE) - 1;
     *(proc->tf) = *tf;
     proc->tf->tf_regs.reg_eax = 0;
-    proc->tf->tf_esp = esp;
+    proc->tf->tf_esp = esp;                                  //设置中断帧的栈指针
     proc->tf->tf_eflags |= FL_IF;
 
     proc->context.eip = (uintptr_t)forkret;
     proc->context.esp = (uintptr_t)(proc->tf);
 }
+//copy_thread函数首先在内核堆栈的顶部设置中断帧大小的一块栈空间,并在此空间中拷贝在
+//kernel_thread函数建立的临时中断帧的初始值,并进一步设置中断帧中的栈指针esp和标志寄
+//存器eflags,特别是eflags设置了FL_IF标志,这表示此内核线程在执行过程中,能响应中
+//断,打断当前的执行。
 
 /* do_fork -     parent process for a new child process
  * @clone_flags: used to guide how to clone the child process
@@ -290,18 +307,44 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
      */
 
     //    1. call alloc_proc to allocate a proc_struct
+    if((proc = alloc_proc())==NULL)
+    {
+      goto fork_out;
+    }
+    proc->parent = current;
     //    2. call setup_kstack to allocate a kernel stack for child process
+    if(setup_kstack(proc )!=0)
+    {
+      goto  bad_fork_cleanup_proc;
+    }
     //    3. call copy_mm to dup OR share mm according clone_flag
+    if(copy_mm(clone_flags,proc)!=0)
+    {
+        goto  bad_fork_cleanup_kstack;
+    }
     //    4. call copy_thread to setup tf & context in proc_struct
+    copy_thread(proc,stack,tf);
     //    5. insert proc_struct into hash_list && proc_list
+    //需要关闭中断
+    bool intr_flag;
+local_intr_save(intr_flag);
+{
+    proc->pid = get_pid();
+    hash_proc(proc);
+    list_add(&proc_list,&(proc->list_link));
+    nr_process ++;
+  }
+local_intr_restore(intr_flag);
     //    6. call wakeup_proc to make the new child process RUNNABLE
+    wakeup_proc(proc);
     //    7. set ret vaule using child proc's pid
+    ret = proc->pid;
 fork_out:
     return ret;
 
-bad_fork_cleanup_kstack:
+bad_fork_cleanup_kstack:                            //清楚栈
     put_kstack(proc);
-bad_fork_cleanup_proc:
+bad_fork_cleanup_proc:                               //清楚线程控制块内存
     kfree(proc);
     goto fork_out;
 }
@@ -330,25 +373,26 @@ void
 proc_init(void) {
     int i;
 
-    list_init(&proc_list);    //初始化线程控制块链表
-    for (i = 0; i < HASH_LIST_SIZE; i ++) {
+    list_init(&proc_list);                                              //初始化线程控制块链表
+    for (i = 0; i < HASH_LIST_SIZE; i ++) {              //初始化进程控制块hash表
         list_init(hash_list + i);
     }
 
-    if ((idleproc = alloc_proc()) == NULL) {
+    if ((idleproc = alloc_proc()) == NULL) {        //分配第一个进程控制块内存
         panic("cannot alloc idleproc.\n");
     }
 
+//初始化进程控制块数据
     idleproc->pid = 0;
-    idleproc->state = PROC_RUNNABLE;
-    idleproc->kstack = (uintptr_t)bootstack;
-    idleproc->need_resched = 1;
-    set_proc_name(idleproc, "idle");
+    idleproc->state = PROC_RUNNABLE;          //设置进程为运行状态
+    idleproc->kstack = (uintptr_t)bootstack;  //设置进程的栈为内核维护的栈
+    idleproc->need_resched = 1;                         //这个为设为1表示需要立即调用调度函数切换到其他进程执行
+    set_proc_name(idleproc, "idle");                //设置进程名字
     nr_process ++;
 
-    current = idleproc;
+    current = idleproc;                                               //设置当前进程为idleproc进程
 
-    int pid = kernel_thread(init_main, "Hello world!!", 0);
+    int pid = kernel_thread(init_main, "Hello world!!", 0);     //通过创建一个内核函数创建内核线程init_main，执行一些工作，输出hello world
     if (pid <= 0) {
         panic("create init_main failed.\n");
     }

@@ -14,7 +14,7 @@
  *           24 bits            7 bits    1 bit
  * */
 
-#define MAX_SWAP_OFFSET_LIMIT                   (1 << 24)  //最大的swap偏移限制 = 16m
+#define MAX_SWAP_OFFSET_LIMIT                   (1 << 24)
 
 extern size_t max_swap_offset;
 
@@ -47,7 +47,7 @@ struct swap_manager
      /* Try to swap out a page, return then victim */
      int (*swap_out_victim) (struct mm_struct *mm, struct Page **ptr_page, int in_tick);
      /* check the page relpacement algorithm */
-     int (*check_swap)(void);
+     int (*check_swap)(void);     
 };
 
 extern volatile int swap_init_ok;

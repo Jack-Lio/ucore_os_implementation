@@ -9,9 +9,9 @@
 #include <swap.h>
 #include <kmalloc.h>
 
-/* 
+/*
   vmm design include two parts: mm_struct (mm) & vma_struct (vma)
-  mm is the memory manager for the set of continuous virtual memory  
+  mm is the memory manager for the set of continuous virtual memory
   area which have the same PDT. vma is a continuous virtual memory area.
   There a linear link list for vma & a redblack link list for vma in mm.
 ---------------
@@ -78,7 +78,7 @@ struct vma_struct *
 find_vma(struct mm_struct *mm, uintptr_t addr) {
     struct vma_struct *vma = NULL;
     if (mm != NULL) {
-        vma = mm->mmap_cache;
+        vma = mm->mmap_cache;//查找cache中是否是目标VMA，否则到mmap_list中去查找
         if (!(vma != NULL && vma->vm_start <= addr && vma->vm_end > addr)) {
                 bool found = 0;
                 list_entry_t *list = &(mm->mmap_list), *le = list;
@@ -390,17 +390,18 @@ volatile unsigned int pgfault_num=0;
  */
 int
 do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
-    int ret = -E_INVAL;
+    int ret = -E_INVAL;       //error.h中宏，表示无效参数，
+    //用来在输出错误提示的时候，作为错误提示的角标输出想一个的错误内容
     //try to find a vma which include addr
-    struct vma_struct *vma = find_vma(mm, addr);
+    struct vma_struct *vma = find_vma(mm, addr);   //查找，看是否存在已经映射的虚地址块
 
     pgfault_num++;
     //If the addr is in the range of a mm's vma?
-    if (vma == NULL || vma->vm_start > addr) {
+    if (vma == NULL || vma->vm_start > addr) {            //不存在，或者访问地址超出虚拟内存范围，访存失败
         cprintf("not valid addr %x, and  can not find it in vma\n", addr);
         goto failed;
     }
-    //check the error_code
+    //check the error_code    检查errorcode 看是什么错误原因(写权限和存在位检查)
     switch (error_code & 3) {
     default:
             /* error code flag : default is 3 ( W/R=1, P=1): write, present */
@@ -425,13 +426,13 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
      * THEN
      *    continue process
      */
-    uint32_t perm = PTE_U;
-    if (vma->vm_flags & VM_WRITE) {
-        perm |= PTE_W;
+    uint32_t perm = PTE_U;      //页表项用户态字段
+    if (vma->vm_flags & VM_WRITE) {       //如果虚拟内存空间是可写的
+        perm |= PTE_W;          //perm判断位或上页表项可写位
     }
-    addr = ROUNDDOWN(addr, PGSIZE);
+    addr = ROUNDDOWN(addr, PGSIZE);           //向下对齐地址获得包含该虚拟地址的块起始位置
 
-    ret = -E_NO_MEM;
+    ret = -E_NO_MEM;            // Request failed due to memory shortage，内存不足的报错宏定义
 
     pte_t *ptep=NULL;
     /*LAB3 EXERCISE 1: YOUR CODE
@@ -451,14 +452,24 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
     *   mm->pgdir : the PDT of these vma
     *
     */
-#if 0
+#if 1
     /*LAB3 EXERCISE 1: YOUR CODE*/
-    ptep = ???              //(1) try to find a pte, if pte's PT(Page Table) isn't existed, then create a PT.
+    ptep = get_pte(mm->pgdir,addr,1);          //(1) try to find a pte, if pte's PT(Page Table) isn't existed, then create a PT.
+    if(ptep==NULL)    //无法获得或分配页表项，报错
+    {
+      cprintf("do_pgfault failed: get_pte  failed\n");
+      goto failed;
+    }
     if (*ptep == 0) {
                             //(2) if the phy addr isn't exist, then alloc a page & map the phy addr with logical addr
-
+                            //物理地址不存在，分配一个物理页帧并映射逻辑地址
+              if(pgdir_alloc_page(mm->pgdir,addr,perm)==NULL)//分配页帧失败
+              {
+                cprintf("do_pgfault failed: pgdir_alloc_page  failed\n");
+                goto failed;
+              }
     }
-    else {
+    else {      //存在一个需要交换的页
     /*LAB3 EXERCISE 2: YOUR CODE
     * Now we think this pte is a  swap entry, we should load data from disk to a page with phy addr,
     * and map the phy addr with logical addr, trigger swap manager to record the access situation of this page.
@@ -481,11 +492,14 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
      */
         if(swap_init_ok) {
             struct Page *page=NULL;
-                                    //(1）According to the mm AND addr, try to load the content of right disk page
-                                    //    into the memory which page managed.
-                                    //(2) According to the mm, addr AND page, setup the map of phy addr <---> logical addr
-                                    //(3) make the page swappable.
-                                    //(4) [NOTICE]: you myabe need to update your lab3's implementation for LAB5's normal execution.
+            if((ret=swap_in(mm,addr,&page))!=0)                        //(1）According to the mm AND addr, try to load the content of right disk page
+            {                                                                                         //    into the memory which page managed.
+              cprintf("do_pgfault failed: swap_in  failed\n");
+              goto failed;
+            }
+            page_insert(mm->pgdir,page,addr,perm);        //(2) According to the mm, addr AND page, setup the map of phy addr <---> logical addr
+            swap_map_swappable(mm,addr,page,1);            //(3) make the page swappable.记录该页的访问情况
+            page->pra_vaddr = addr;                                             //使用pra_vaddr记录该物理页的虚拟地址起始地址
         }
         else {
             cprintf("no swap_init_ok but ptep is %x, failed\n",*ptep);

@@ -23,7 +23,7 @@ kern_entry:
     jmp *%eax
 next:
 
-    # unmap va 0 ~ 4M, it's temporary mapping        将boot_pgdir清零
+    # unmap va 0 ~ 4M, it's temporary mapping
     xorl %eax, %eax
     movl %eax, __boot_pgdir
 
@@ -35,7 +35,7 @@ next:
     # now kernel stack is ready , call the first C function
     call kern_init
 
-# should never get here  kern_init出现错误退出进入此无限循环说明系统崩溃
+# should never get here
 spin:
     jmp spin
 
