@@ -103,6 +103,18 @@ alloc_proc(void) {
      *       uint32_t flags;                             // Process flag
      *       char name[PROC_NAME_LEN + 1];               // Process name
      */
+     proc->state = PROC_UNINIT;               //设置进程为初始态
+     proc->pid = -1;                                           //不能是0，因为零号进程需要使用
+     proc->runs = 0;                                          //运行时间
+     proc->kstack = 0;                                     //栈设置
+     proc->need_resched = 0;
+     proc->parent = NULL;
+     proc->mm = NULL;
+     memset(&(proc->context),0,sizeof(struct context));
+     proc->tf = NULL;
+     proc->cr3 = boot_cr3;                           //进程创建之初视为内核进程
+     proc->flags = 0;
+     memset(proc->name,0,PROC_NAME_LEN);     //分配内存空间
      //LAB5 YOUR CODE : (update LAB4 steps)
     /*
      * below fields(add in LAB5) in proc_struct need to be initialized
