@@ -121,7 +121,11 @@ alloc_proc(void) {
      *       uint32_t wait_state;                        // waiting state
      *       struct proc_struct *cptr, *yptr, *optr;     // relations between processes
 	 */
+   proc->wait_state = 0;
+   proc->cptr = proc->yptr = proc->optr = NULL;
+   //父进程                  弟进程                   兄进程
     }
+
     return proc;
 }
 
@@ -363,7 +367,7 @@ copy_thread(struct proc_struct *proc, uintptr_t esp, struct trapframe *tf) {
     proc->tf = (struct trapframe *)(proc->kstack + KSTACKSIZE) - 1;
     *(proc->tf) = *tf;
     proc->tf->tf_regs.reg_eax = 0;
-    proc->tf->tf_esp = esp;
+    proc->tf->tf_esp = esp;                                  //设置中断帧的栈指针
     proc->tf->tf_eflags |= FL_IF;
 
     proc->context.eip = (uintptr_t)forkret;
@@ -411,6 +415,7 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
       goto fork_out;
     }
     proc->parent = current;
+    assert(current->wait_state==0);
     //    2. call setup_kstack to allocate a kernel stack for child process
     if(setup_kstack(proc )!=0)
     {
@@ -430,8 +435,9 @@ local_intr_save(intr_flag);
 {
     proc->pid = get_pid();
     hash_proc(proc);
-    list_add(&proc_list,&(proc->list_link));
-    nr_process ++;
+    //list_add(&proc_list,&(proc->list_link));
+    set_links(proc);                    // lab5 update
+    //nr_process ++;
   }
 local_intr_restore(intr_flag);
     //    6. call wakeup_proc to make the new child process RUNNABLE
@@ -449,9 +455,9 @@ local_intr_restore(intr_flag);
 fork_out:
     return ret;
 
-bad_fork_cleanup_kstack:                            //清楚栈
+bad_fork_cleanup_kstack:                            //清除栈
     put_kstack(proc);
-bad_fork_cleanup_proc:                               //清楚线程控制块内存
+bad_fork_cleanup_proc:                               //清除线程控制块内存
     kfree(proc);
     goto fork_out;
 }
@@ -462,6 +468,7 @@ bad_fork_cleanup_proc:                               //清楚线程控制块内�
 //   3. call scheduler to switch to other process
 int
 do_exit(int error_code) {
+
     if (current == idleproc) {
         panic("idleproc exit.\n");
     }
@@ -530,6 +537,7 @@ load_icode(unsigned char *binary, size_t size) {
         goto bad_mm;
     }
     //(2) create a new PDT, and mm->pgdir= kernel virtual addr of PDT
+    //创建一个页目录表并获取该页目录所需内存，同时将当前的内核页表拷贝到新的页目录表中，并正确映射
     if (setup_pgdir(mm) != 0) {
         goto bad_pgdir_cleanup_mm;
     }
@@ -544,9 +552,10 @@ load_icode(unsigned char *binary, size_t size) {
         ret = -E_INVAL_ELF;
         goto bad_elf_cleanup_pgdir;
     }
-
+//初始化vmm，解析程序头部信息
     uint32_t vm_flags, perm;
     struct proghdr *ph_end = ph + elf->e_phnum;
+    //对每一个程序文件数据都做如此处理
     for (; ph < ph_end; ph ++) {
     //(3.4) find every program section headers
         if (ph->p_type != ELF_PT_LOAD) {
@@ -560,14 +569,20 @@ load_icode(unsigned char *binary, size_t size) {
             continue ;
         }
     //(3.5) call mm_map fun to setup the new vma ( ph->p_va, ph->p_memsz)
+    //调用mm_map函数来构建新的VMM
         vm_flags = 0, perm = PTE_U;
+        //相关标志属性位的设置
         if (ph->p_flags & ELF_PF_X) vm_flags |= VM_EXEC;
         if (ph->p_flags & ELF_PF_W) vm_flags |= VM_WRITE;
         if (ph->p_flags & ELF_PF_R) vm_flags |= VM_READ;
         if (vm_flags & VM_WRITE) perm |= PTE_W;
+        //构建VMM实现地址映射
         if ((ret = mm_map(mm, ph->p_va, ph->p_memsz, vm_flags, NULL)) != 0) {
             goto bad_cleanup_mmap;
         }
+
+        //根据执行程序的各个段大小分配物理内存空间，并更具执行程序各个段的起始位置确定虚拟地址
+        //同时在页表中建立好物理地址和虚拟地址的映射关系，然后把执行程序的各个段拷贝到相应的内核虚拟地址中
         unsigned char *from = binary + ph->p_offset;
         size_t off, size;
         uintptr_t start = ph->p_va, end, la = ROUNDDOWN(start, PGSIZE);
@@ -577,19 +592,25 @@ load_icode(unsigned char *binary, size_t size) {
      //(3.6) alloc memory, and  copy the contents of every program section (from, from+end) to process's memory (la, la+end)
         end = ph->p_va + ph->p_filesz;
      //(3.6.1) copy TEXT/DATA section of bianry program
+     //为代码数据段分配物理内存空间并构建虚拟地址和物理地址的映射关系
         while (start < end) {
             if ((page = pgdir_alloc_page(mm->pgdir, la, perm)) == NULL) {
                 goto bad_cleanup_mmap;
             }
+            //计算好偏移量，并迭代la地址
             off = start - la, size = PGSIZE - off, la += PGSIZE;
             if (end < la) {
+              //截断多余的长度
                 size -= la - end;
             }
+            //将数据拷贝到内存的页表映射位置
             memcpy(page2kva(page) + off, from, size);
+            //更新迭代量
             start += size, from += size;
         }
 
       //(3.6.2) build BSS section of binary program
+      //将未填充的内存空间进行映射
         end = ph->p_va + ph->p_memsz;
         if (start < la) {
             /* ph->p_memsz == ph->p_filesz */
@@ -617,6 +638,7 @@ load_icode(unsigned char *binary, size_t size) {
         }
     }
     //(4) build user stack memory
+    //建立栈
     vm_flags = VM_READ | VM_WRITE | VM_STACK;
     if ((ret = mm_map(mm, USTACKTOP - USTACKSIZE, USTACKSIZE, vm_flags, NULL)) != 0) {
         goto bad_cleanup_mmap;
@@ -627,13 +649,17 @@ load_icode(unsigned char *binary, size_t size) {
     assert(pgdir_alloc_page(mm->pgdir, USTACKTOP-4*PGSIZE , PTE_USER) != NULL);
 
     //(5) set current process's mm, sr3, and set CR3 reg = physical addr of Page Directory
+//将当前的内存控制信息块替换为新建立的进程内存控制块，页表根目录添加到cr3寄存器
     mm_count_inc(mm);
     current->mm = mm;
     current->cr3 = PADDR(mm->pgdir);
+    //设置cr3寄存器
     lcr3(PADDR(mm->pgdir));
 
     //(6) setup trapframe for user environment
+//用户进程虚拟内存管理和物理内存管理工作完毕，需要设置用户进程执行现场
     struct trapframe *tf = current->tf;
+    //覆盖当前的执行现场信息块tf
     memset(tf, 0, sizeof(struct trapframe));
     /* LAB5:EXERCISE1 YOUR CODE
      * should set tf_cs,tf_ds,tf_es,tf_ss,tf_esp,tf_eip,tf_eflags
@@ -644,6 +670,11 @@ load_icode(unsigned char *binary, size_t size) {
      *          tf_eip should be the entry point of this binary program (elf->e_entry)
      *          tf_eflags should be set to enable computer to produce Interrupt
      */
+     tf->tf_cs = USER_CS;     //进入用户态
+     tf->tf_ds = tf->tf_es=tf->tf_ss = USER_DS;
+     tf->tf_esp = USTACKTOP;
+     tf->tf_eip = elf->e_entry;
+     tf->tf_eflags = FL_IF;                     //使能中断位，表明线程在执行过程中，能够响应中断，打断当前的执行
     ret = 0;
 out:
     return ret;
@@ -662,30 +693,36 @@ bad_mm:
 int
 do_execve(const char *name, size_t len, unsigned char *binary, size_t size) {
     struct mm_struct *mm = current->mm;
+    //用户内存空间检查
     if (!user_mem_check(mm, (uintptr_t)name, len, 0)) {
         return -E_INVAL;
     }
     if (len > PROC_NAME_LEN) {
         len = PROC_NAME_LEN;
     }
-
+//覆盖现有的initproc的用户虚拟内存空间实现创建
     char local_name[PROC_NAME_LEN + 1];
     memset(local_name, 0, sizeof(local_name));
     memcpy(local_name, name, len);
-
+//如果现有的mm不为NULL，则设置内核空间页表，并经一部判断引用计数器减去1后是否为0
     if (mm != NULL) {
         lcr3(boot_cr3);
         if (mm_count_dec(mm) == 0) {
+          //引用计数器为0，表明没有进程需要此进程所占用的内存空间
+          //将进程占用空间内存和进程页表本身所占用的空间释放
             exit_mmap(mm);
             put_pgdir(mm);
             mm_destroy(mm);
         }
+        //将当前的管理进程指针置位为NULL
         current->mm = NULL;
     }
+    //加载运行程序的执行代码到当前initproc进程性创建的用户态虚拟空间中
     int ret;
     if ((ret = load_icode(binary, size)) != 0) {
         goto execve_exit;
     }
+    //修改当前进程的进程名，覆盖当前进程的进程名
     set_proc_name(current, local_name);
     return 0;
 
@@ -704,6 +741,7 @@ do_yield(void) {
 // do_wait - wait one OR any children with PROC_ZOMBIE state, and free memory space of kernel stack
 //         - proc struct of this child.
 // NOTE: only after do_wait function, all resources of the child proces are free.
+//将挂起状态的进程改变为等待状态
 int
 do_wait(int pid, int *code_store) {
     struct mm_struct *mm = current->mm;

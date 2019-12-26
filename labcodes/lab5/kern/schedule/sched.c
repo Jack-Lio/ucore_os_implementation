@@ -6,12 +6,12 @@
 
 void
 wakeup_proc(struct proc_struct *proc) {
-    assert(proc->state != PROC_ZOMBIE);
+    assert(proc->state != PROC_ZOMBIE);    //挂起状态无法唤醒
     bool intr_flag;
     local_intr_save(intr_flag);
     {
         if (proc->state != PROC_RUNNABLE) {
-            proc->state = PROC_RUNNABLE;
+            proc->state = PROC_RUNNABLE;      //改变运行状态
             proc->wait_state = 0;
         }
         else {
@@ -49,4 +49,3 @@ schedule(void) {
     }
     local_intr_restore(intr_flag);
 }
-

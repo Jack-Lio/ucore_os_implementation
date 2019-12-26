@@ -9,9 +9,9 @@
 #include <swap.h>
 #include <kmalloc.h>
 
-/*
+/* 
   vmm design include two parts: mm_struct (mm) & vma_struct (vma)
-  mm is the memory manager for the set of continuous virtual memory
+  mm is the memory manager for the set of continuous virtual memory  
   area which have the same PDT. vma is a continuous virtual memory area.
   There a linear link list for vma & a redblack link list for vma in mm.
 ---------------
@@ -78,7 +78,7 @@ struct vma_struct *
 find_vma(struct mm_struct *mm, uintptr_t addr) {
     struct vma_struct *vma = NULL;
     if (mm != NULL) {
-        vma = mm->mmap_cache;//查找cache中是否是目标VMA，否则到mmap_list中去查找
+        vma = mm->mmap_cache;
         if (!(vma != NULL && vma->vm_start <= addr && vma->vm_end > addr)) {
                 bool found = 0;
                 list_entry_t *list = &(mm->mmap_list), *le = list;

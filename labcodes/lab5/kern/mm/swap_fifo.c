@@ -29,8 +29,6 @@ list_entry_t pra_list_head;
 /*
  * (2) _fifo_init_mm: init pra_list_head and let  mm->sm_priv point to the addr of pra_list_head.
  *              Now, From the memory control struct mm_struct, we can access FIFO PRA
- *         初始化的时候将mm_struct 的sm_priv指针指向页面访问情况记录的链表，这样之后通过
- *          mm_struct就可以实现FIFO 替换策略了。
  */
 static int
 _fifo_init_mm(struct mm_struct *mm)
@@ -43,8 +41,6 @@ _fifo_init_mm(struct mm_struct *mm)
 /*
  * (3)_fifo_map_swappable: According FIFO PRA, we should link the most recent arrival page at the back of pra_list_head qeueue
  */
-
-// 用于记录页访问情况相关属性，重点实现算法,不过swap_in参数没有使用啊
 static int
 _fifo_map_swappable(struct mm_struct *mm, uintptr_t addr, struct Page *page, int swap_in)
 {
@@ -53,7 +49,7 @@ _fifo_map_swappable(struct mm_struct *mm, uintptr_t addr, struct Page *page, int
  
     assert(entry != NULL && head != NULL);
     //record the page access situlation
-    /*LAB3 EXERCISE 2: YOUR CODE*/
+    /*LAB3 EXERCISE 2: YOUR CODE*/ 
     //(1)link the most recent arrival page at the back of the pra_list_head qeueue.
     list_add_after(head,entry);       //将页面访问情况添加到（记录所有页访问情况的列表）head之后，这样最新访问的在最前面
     return 0;
@@ -62,7 +58,6 @@ _fifo_map_swappable(struct mm_struct *mm, uintptr_t addr, struct Page *page, int
  *  (4)_fifo_swap_out_victim: According FIFO PRA, we should unlink the  earliest arrival page in front of pra_list_head qeueue,
  *                            then assign the value of *ptr_page to the addr of this page.
  */
- //后一个函数用于挑选需要换出的页
 static int
 _fifo_swap_out_victim(struct mm_struct *mm, struct Page ** ptr_page, int in_tick)
 {

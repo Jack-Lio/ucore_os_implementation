@@ -26,4 +26,3 @@ main(void) {
     cprintf("spin may pass.\n");
     return 0;
 }
-

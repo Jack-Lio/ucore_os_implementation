@@ -152,7 +152,6 @@ init_memmap(struct Page *base, size_t n) {
 }
 
 //alloc_pages - call pmm->alloc_pages to allocate a continuous n*PAGESIZE memory
-//分配连续的n个pagesize大小的内存空间，问题是为什么对页表的相关函数调用都需要先关闭中断呢？？？？
 struct Page *
 alloc_pages(size_t n) {
     struct Page *page=NULL;
@@ -167,7 +166,7 @@ alloc_pages(size_t n) {
          local_intr_restore(intr_flag);
 
          if (page != NULL || n > 1 || swap_init_ok == 0) break;
-         
+
          extern struct mm_struct *check_mm_struct;
          //cprintf("page %x, call swap_out in alloc_pages %d\n",page, n);
          swap_out(check_mm_struct, n, 0);
@@ -176,7 +175,7 @@ alloc_pages(size_t n) {
     return page;
 }
 
-//free_pages - call pmm->free_pages to free a continuous n*PAGESIZE memory 
+//free_pages - call pmm->free_pages to free a continuous n*PAGESIZE memory
 void
 free_pages(struct Page *base, size_t n) {
     bool intr_flag;
@@ -189,7 +188,6 @@ free_pages(struct Page *base, size_t n) {
 
 //nr_free_pages - call pmm->nr_free_pages to get the size (nr*PAGESIZE)
 //of current free memory
-//获取当前的空闲页数量
 size_t
 nr_free_pages(void) {
     size_t ret;
@@ -203,10 +201,8 @@ nr_free_pages(void) {
 }
 
 /* pmm_init - initialize the physical memory management */
-// 初始化pmm
 static void
 page_init(void) {
-    //申明一个e820map变量，从0x8000开始
     struct e820map *memmap = (struct e820map *)(0x8000 + KERNBASE);
     uint64_t maxpa = 0;
 
@@ -216,25 +212,25 @@ page_init(void) {
         uint64_t begin = memmap->map[i].addr, end = begin + memmap->map[i].size;
         cprintf("  memory: %08llx, [%08llx, %08llx], type = %d.\n",
                 memmap->map[i].size, begin, end - 1, memmap->map[i].type);
-        if (memmap->map[i].type == E820_ARM) {      //用户区内存的第一段，获取交接处的地址
+        if (memmap->map[i].type == E820_ARM) {
             if (maxpa < end && begin < KMEMSIZE) {
                 maxpa = end;
             }
         }
     }
-    if (maxpa > KMEMSIZE) {   //获得最大的内存地址，从而获取需要管理的内存页个数
+    if (maxpa > KMEMSIZE) {
         maxpa = KMEMSIZE;
     }
 
     extern char end[];
 
-    npage = maxpa / PGSIZE;   //获取需要管理的页数
-    pages = (struct Page *)ROUNDUP((void *)end, PGSIZE);    //向上取整获取管理内存空间的开始地址
-    //为所有的页设置保留位为1，即为内核保留的页空间
+    npage = maxpa / PGSIZE;
+    pages = (struct Page *)ROUNDUP((void *)end, PGSIZE);
+
     for (i = 0; i < npage; i ++) {
         SetPageReserved(pages + i);
     }
-//获取空闲内存空间起始地址
+
     uintptr_t freemem = PADDR((uintptr_t)pages + sizeof(struct Page) * npage);
 
     for (i = 0; i < memmap->nr_map; i ++) {
@@ -247,11 +243,9 @@ page_init(void) {
                 end = KMEMSIZE;
             }
             if (begin < end) {
-              //获得空闲空间的开始地址和结束地址，分别向上取整和向下取整，对齐开始地址
                 begin = ROUNDUP(begin, PGSIZE);
                 end = ROUNDDOWN(end, PGSIZE);
                 if (begin < end) {
-                  //将page结构中的flags位和引用位ref清零，并加入空闲链表管理
                     init_memmap(pa2page(begin), (end - begin) / PGSIZE);
                 }
             }
@@ -321,7 +315,6 @@ pmm_init(void) {
 
     // map all physical memory to linear memory with base linear addr KERNBASE
     // linear_addr KERNBASE ~ KERNBASE + KMEMSIZE = phy_addr 0 ~ KMEMSIZE
-    //将4MB之外的线性地址映射到物理地址
     boot_map_segment(boot_pgdir, KERNBASE, KMEMSIZE, 0, PTE_W);
 
     // Since we are using bootloader's GDT,
@@ -335,7 +328,7 @@ pmm_init(void) {
     check_boot_pgdir();
 
     print_pgdir();
-    
+
     kmalloc_init();
 
 }
@@ -475,17 +468,20 @@ exit_range(pde_t *pgdir, uintptr_t start, uintptr_t end) {
  */
 int
 copy_range(pde_t *to, pde_t *from, uintptr_t start, uintptr_t end, bool share) {
-    assert(start % PGSIZE == 0 && end % PGSIZE == 0);
-    assert(USER_ACCESS(start, end));
+    assert(start % PGSIZE == 0 && end % PGSIZE == 0);      //检验起止地址为归一化的地址
+    assert(USER_ACCESS(start, end));                                        //检验是否为用户空间地址
     // copy content by page unit.
+    //以页为单位拷贝内存数据
     do {
         //call get_pte to find process A's pte according to the addr start
+        //获取页表项，如果页表项获取失败
         pte_t *ptep = get_pte(from, start, 0), *nptep;
         if (ptep == NULL) {
             start = ROUNDDOWN(start + PTSIZE, PTSIZE);
             continue ;
         }
         //call get_pte to find process B's pte according to the addr start. If pte is NULL, just alloc a PT
+        //获取目的进程的其实地址并分配一个页给他
         if (*ptep & PTE_P) {
             if ((nptep = get_pte(to, start, 1)) == NULL) {
                 return -E_NO_MEM;
@@ -512,6 +508,12 @@ copy_range(pde_t *to, pde_t *from, uintptr_t start, uintptr_t end, bool share) {
          * (3) memory copy from src_kvaddr to dst_kvaddr, size is PGSIZE
          * (4) build the map of phy addr of  nage with the linear addr start
          */
+         void *  src_kvaddr = page2kva(page);
+         void * dst_kvaddr = page2kva(npage);
+
+         memcpy(dst_kvaddr,src_kvaddr ,PGSIZE);
+
+         ret = page_insert(to, npage, start, perm);
         assert(ret == 0);
         }
         start += PGSIZE;
@@ -583,7 +585,7 @@ pgdir_alloc_page(pde_t *pgdir, uintptr_t la, uint32_t perm) {
                 page->pra_vaddr=la;
                 assert(page_ref(page) == 1);
                 //cprintf("get No. %d  page: pra_vaddr %x, pra_link.prev %x, pra_link_next %x in pgdir_alloc_page\n", (page-pages), page->pra_vaddr,page->pra_page_link.prev, page->pra_page_link.next);
-            } 
+            }
             else  {  //now current is existed, should fix it in the future
                 //swap_map_swappable(current->mm, la, page, 0);
                 //page->pra_vaddr=la;

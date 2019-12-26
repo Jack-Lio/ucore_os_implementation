@@ -53,13 +53,17 @@ idt_init(void) {
       *     You don't know the meaning of this instruction? just google it! and check the libs/x86.h to know more.
       *     Notice: the argument of lidt is idt_pd. try to find it!
       */
+      /* LAB5 YOUR CODE */
+//you should update your lab1 code (just add ONE or TWO lines of code), let user app to use syscall to get the service of ucore
+//so you should setup the syscall interrupt gate in here
     extern uint32_t __vectors[];
     for (int i =0 ; i < sizeof(idt)/sizeof(struct gatedesc);i++)
     {
       SETGATE(idt[i],0,GD_KTEXT,__vectors[i],DPL_KERNEL);
     }
     // set for switch from user to kernel
-    SETGATE(idt[T_SWITCH_TOK], 0, GD_KTEXT, __vectors[T_SWITCH_TOK], DPL_USER);
+    //SETGATE(idt[T_SWITCH_TOK], 0, GD_KTEXT, __vectors[T_SWITCH_TOK], DPL_USER);
+    SETGATE(idt[T_SYSCALL], 1, GD_KTEXT, __vectors[T_SYSCALL], DPL_USER);
     lidt(&idt_pd);
 }
 
@@ -205,7 +209,7 @@ trap_dispatch(struct trapframe *tf) {
                     panic("handle pgfault failed in kernel mode. ret=%d\n", ret);
                 }
                 cprintf("killed by kernel.\n");
-                panic("handle user mode pgfault failed. ret=%d\n", ret); 
+                panic("handle user mode pgfault failed. ret=%d\n", ret);
                 do_exit(-E_KILLED);
             }
         }
@@ -224,12 +228,17 @@ trap_dispatch(struct trapframe *tf) {
          * (2) Every TICK_NUM cycle, you can print some info using a funciton, such as print_ticks().
          * (3) Too Simple? Yes, I think so!
          */
-        ticks++;
-        if(ticks % TICK_NUM == 0 )
-        {
-          print_ticks();
-        }
-        break;
+         /* LAB5 YOUR CODE */
+/* you should upate you lab1 code (just add ONE or TWO lines of code):
+ *    Every TICK_NUM cycle, you should set current process's current->need_resched = 1
+ */
+ ticks ++;
+ if (ticks % TICK_NUM == 0) {
+     assert(current != NULL);
+     current->need_resched = 1;
+     //print_ticks();     //不注释会报错，make grade 不通过
+ }
+ break;
     case IRQ_OFFSET + IRQ_COM1:
         c = cons_getc();
         cprintf("serial [%03d] %c\n", c, c);
@@ -296,11 +305,11 @@ trap(struct trapframe *tf) {
         // keep a trapframe chain in stack
         struct trapframe *otf = current->tf;
         current->tf = tf;
-    
+
         bool in_kernel = trap_in_kernel(tf);
-    
+
         trap_dispatch(tf);
-    
+
         current->tf = otf;
         if (!in_kernel) {
             if (current->flags & PF_EXITING) {
@@ -312,4 +321,3 @@ trap(struct trapframe *tf) {
         }
     }
 }
-

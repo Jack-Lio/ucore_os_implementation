@@ -140,19 +140,20 @@ get_pid(void) {
     struct proc_struct *proc;
     list_entry_t *list = &proc_list, *le;
     static int next_safe = MAX_PID, last_pid = MAX_PID;
-    if (++ last_pid >= MAX_PID) {
+    //先将静态局部变量next_safe和last_pid都置位为max_pid,即最大的进程id
+    if (++ last_pid >= MAX_PID) {             //循环分配ＩＤ  ，不通过下一个判断直接进入代码体
         last_pid = 1;
         goto inside;
     }
-    if (last_pid >= next_safe) {
+    if (last_pid >= next_safe) {                   //如果上次分配的id大于等于可分配id上界
     inside:
-        next_safe = MAX_PID;
+        next_safe = MAX_PID;                        //更新允许的ｉｄ上界
     repeat:
         le = list;
-        while ((le = list_next(le)) != list) {
+        while ((le = list_next(le)) != list) {      //遍历进程列表找到一个未分配的id
             proc = le2proc(le, list_link);
             if (proc->pid == last_pid) {
-                if (++ last_pid >= next_safe) {
+                if (++ last_pid >= next_safe) {         //last_pid增加1，如果在安全区间内，则直接分配，否则进行区间扩大
                     if (last_pid >= MAX_PID) {
                         last_pid = 1;
                     }
@@ -160,7 +161,7 @@ get_pid(void) {
                     goto repeat;
                 }
             }
-            else if (proc->pid > last_pid && next_safe > proc->pid) {
+            else if (proc->pid > last_pid && next_safe > proc->pid) {               //缩小last_pid和next_safe之间的区间
                 next_safe = proc->pid;
             }
         }
@@ -172,17 +173,17 @@ get_pid(void) {
 // NOTE: before call switch_to, should load  base addr of "proc"'s new PDT
 void
 proc_run(struct proc_struct *proc) {
-    if (proc != current) {
+    if (proc != current) {        //判断进程是否为执行中的进程
         bool intr_flag;
         struct proc_struct *prev = current, *next = proc;
-        local_intr_save(intr_flag);
+        local_intr_save(intr_flag);                       //sync.h 关闭中断
         {
-            current = proc;
-            load_esp0(next->kstack + KSTACKSIZE);
-            lcr3(next->cr3);
-            switch_to(&(prev->context), &(next->context));
+            current = proc;                                       //切换当前执行进程
+            load_esp0(next->kstack + KSTACKSIZE);             //切换 task state segment,实现运行不同的内核栈
+            lcr3(next->cr3);                                                            //切换也页目录表根地址
+            switch_to(&(prev->context), &(next->context));    //上下文切换switch.S
         }
-        local_intr_restore(intr_flag);
+        local_intr_restore(intr_flag);                                  //恢复中断
     }
 }
 
